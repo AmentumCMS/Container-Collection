@@ -35,6 +35,7 @@ In this case, it:
 - Sonatype Nexus latest images from DSO.mil IronBank
 - RabbitMQ Latest images from DSO.mil Ironbank
 - ArgoCD Latest images from DSO.mil Ironbank
+- Keycloak Latest images from DSO.mil Ironbank
 
 ### Disk 4 - _Support-Images-\<DATE>.iso_
 
