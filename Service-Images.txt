@@ -5,3 +5,4 @@ Collector-RabbitMQ-IB
 Collector-Nexus-IB
 Collector-ArgoCD-IB
 Collector-HAProxy-IB
+Collector-Keycloak-IB
