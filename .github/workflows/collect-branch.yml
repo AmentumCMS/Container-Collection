@@ -38,7 +38,7 @@ jobs:
 
       - name: Remove ISO files
         run: |
-          if [[ ${{ vars.KEEPISO }} == "true" ]]; then
+          if [[ "${{ vars.KEEPISO }}" == "true" ]]; then
             echo -e "\nKeeping ISO files\n"
           else
             echo -e "\nRemoving ISO files\n"
