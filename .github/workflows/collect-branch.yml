@@ -42,7 +42,7 @@ jobs:
             echo -e "\nKeeping ISO files\n"
           else
             echo -e "\nRemoving ISO files\n"
-            find *.iso* -type f -delete
+            find . -iname *.iso* -type f -delete
           fi
 
       - name: Copy README to ${{ matrix.set }} ISO
