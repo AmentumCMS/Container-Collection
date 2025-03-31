@@ -36,6 +36,15 @@ jobs:
       - name: Run Collection Script for ${{ matrix.set }}.txt
         run: ./collect.sh ${{ matrix.set }}.txt
 
+      - name: Remove ISO files
+        run: |
+          if [[ "${{ vars.KEEPISO }}" == "true" ]]; then
+            echo -e "\nKeeping ISO files\n"
+          else
+            echo -e "\nRemoving ISO files\n"
+            find . -iname *.iso* -type f -delete
+          fi
+
       - name: Copy README to ${{ matrix.set }} ISO
         run: cp -v README.md ${{ matrix.set }}/
 

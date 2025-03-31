@@ -16,7 +16,7 @@ In this case, it:
 - UBI 8 & 9 latest images from DSO.mil IronBank
 - JDK 8, 11, & 17 latest images from DSO.mil IronBank
 - nginx latest images from DSO.mil IronBank
-- RHEL BootC from Redhat
+- RHEL Image Mode from Redhat
 
 ### Disk 2 - _Pipeline-Images-\<DATE>.iso_
 
