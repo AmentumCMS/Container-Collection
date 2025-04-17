@@ -39,6 +39,7 @@ In this case, it:
 
 ### Disk 4 - _Support-Images-\<DATE>.iso_
 
+- Busybox Utility Images
 - KinD for K8s Cluster Testing
 - K9s CLI for K8s Cluster management
 - Helm CLI for K8s Helm Chart Management
