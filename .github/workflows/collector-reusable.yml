@@ -9,6 +9,19 @@ on:
       collector_name:
         required: true
         type: string
+      collect_helm:
+        required: false
+        type: boolean
+        default: false
+      helm_repo_name:
+        required: false
+        type: string
+      helm_repo_url:
+        required: false
+        type: string
+      helm_chart:
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -147,6 +160,49 @@ jobs:
           path: scan-results/
           if-no-files-found: error
 
+  helm:
+    name: Collect Helm chart
+    runs-on: ubuntu-24.04
+    needs: [resolve] # Should be after scan later, but I want to test
+    if: ${{ inputs.collect_helm }}
+    env:
+      COLLECTOR_NAME: ${{ inputs.collector_name }}
+      DATE: ${{ needs.resolve.outputs.date }}
+      HELM_REPO_NAME: ${{ inputs.helm_repo_name }}
+      HELM_REPO_URL:  ${{ inputs.helm_repo_url }}
+      HELM_CHART:     ${{ inputs.helm_chart }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install helm
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sudo bash
+          helm version
+
+      - name: Fetch chart + evidence
+        run: |
+          set -euo pipefail
+          outdir="${COLLECTOR_NAME}/helmchart"
+          mkdir -p "$outdir"
+          cd "$outdir"
+
+          helm repo add "$HELM_REPO_NAME" "$HELM_REPO_URL"
+          helm repo update
+          helm pull "$HELM_REPO_NAME/$HELM_CHART" --untar || helm pull "$HELM_REPO_NAME/$HELM_CHART"
+
+          sha256sum -b * | tee "../${COLLECTOR_NAME}-${DATE}.helm.sha"
+          ls -Alh
+
+      - name: Upload Helm chart artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-helm
+          path: |
+            ${{ env.COLLECTOR_NAME }}/helmchart/**
+            ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.helm.sha
+          if-no-files-found: error
+
   sync:
     name: Skopeo sync + package mirror
     runs-on: ubuntu-24.04
@@ -157,6 +213,12 @@ jobs:
       DATE: ${{ needs.resolve.outputs.date }}
     steps:
       - uses: actions/checkout@v4
+      - name: Download Helm chart (if enabled)
+        if: ${{ inputs.collect_helm }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.collector_name }}-${{ env.DATE }}-helm
+          path: .
 
       - name: Install skopeo + pigz
         run: |

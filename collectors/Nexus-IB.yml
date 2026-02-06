@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/sonatype/nexus/nexus: (^3.82.0-08$)

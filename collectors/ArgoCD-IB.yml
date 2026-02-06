@@ -1,0 +1,7 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/opensource/argoproj/argocd: v2.14.8$
+        ironbank/opensource/argoproj/argocli: v3.6.2$
+ghcr.io:
+    images-by-tag-regex:
+        dexidp/dex: v2.42.0

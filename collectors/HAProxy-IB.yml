@@ -1,0 +1,4 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/opensource/haproxy/haproxy-latest: ^3.0.7$
+        ironbank/opensource/haproxy/haproxy24: ^2.4.28$
