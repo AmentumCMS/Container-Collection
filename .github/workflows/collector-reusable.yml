@@ -189,17 +189,17 @@ jobs:
           cd "${COLLECTOR_NAME}/helmchart"
 
           echo -e "\nSet repo and pull chart"
-          helm repo add "${HELM_REPO}" "${HELM_URL}"
+          helm repo add "${helm_repo_name}" "${HELM_REPO_URL}"
           helm repo update
 
           # OLD BEHAVIOR: no --untar (downloads a .tgz)
-          helm pull "${HELM_REPO}/${HELM_NAME}"
+          helm pull "${helm_repo_name}/${HELM_CHART}"
 
           echo -e "\nInstall helm images plugin"
           helm plugin install https://github.com/nikhilsbhat/helm-images > /dev/null 2>&1 || true
 
           echo -e "\nImages listed in chart"
-          helm images get "${HELM_REPO}/${HELM_NAME}" || true
+          helm images get "${helm_repo_name}/${HELM_CHART}" || true
 
           echo -e "\n\nHelmchart Hash"
           # Old version did: sha256sum -b *
