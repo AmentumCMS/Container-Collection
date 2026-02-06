@@ -1,5 +1,5 @@
 name: Collect All (Branch)
-run-name: Collect ${{ matrix.name }}
+run-name: Collect containers
 
 on:
   push:
@@ -11,7 +11,8 @@ permissions:
   security-events: write
 
 jobs:
-  run:
+  collect:
+    name: Collect ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
