@@ -1,0 +1,4 @@
+registry.redhat.io:
+    images-by-tag-regex:
+        rhel9/rhel-bootc: ^9.5$
+        rhel9/bootc-image-builder: ^9.5$

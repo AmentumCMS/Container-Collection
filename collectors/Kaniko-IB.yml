@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/opensource/kaniko/kaniko: ^v1.22.*|^v1.19.*|latest
