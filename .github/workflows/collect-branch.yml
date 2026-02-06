@@ -1,4 +1,5 @@
 name: Collect All (Branch)
+run-name: Collect ${{ matrix.name }}
 
 on:
   push:
