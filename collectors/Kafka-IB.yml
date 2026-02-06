@@ -1,0 +1,11 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/bitnami/kafka: ^3.4.0$
+        ironbank/bitnami/zookeeper: ^3.9.3$
+        ironbank/opensource/strimzi/operator: ^0.45.0$
+        ironbank/opensource/strimzi/kafka: ^0.45.0-kafka-3.8.0$
+        ironbank/opensource/apache/zookeeper: ^3.9.3$
+        ironbank/opensource/prometheus/jmx-exporter: ^1.0.1$
+docker.io:
+    images-by-tag-regex:
+        obsidiandynamics/kafdrop: ^4.1.0$

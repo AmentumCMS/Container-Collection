@@ -13,10 +13,8 @@ jobs:
         include:
           - name: kafka-ib
             yaml: collectors/Kafka-IB.yml
-          - name: base
-            yaml: collectors/Base.yml
-          - name: pipeline
-            yaml: collectors/Pipeline.yml
+          - name: postgres-ib
+            yaml: collectors/PostgreSQL-IB.yml
 
     uses: ./.github/workflows/collector-reusable.yml
     with:
