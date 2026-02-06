@@ -1,0 +1,172 @@
+name: Collector (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      collector_yaml:
+        required: true
+        type: string
+      collector_name:
+        required: true
+        type: string
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      security-events: write
+    env:
+      COLLECTOR_YAML: ${{ inputs.collector_yaml }}
+      COLLECTOR_NAME: ${{ inputs.collector_name }}
+      TRIVY_SEVERITY: "HIGH,CRITICAL"
+      GRYPE_FAIL_ON: "high"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Date stamp
+        id: date
+        run: |
+          echo "DATE=$(date '+%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Install tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y skopeo pigz mkisofs isomd5sum wget curl
+
+          # yq
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+          # Trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+          # Grype
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Registry login (skopeo + docker)
+        run: |
+          set -euo pipefail
+          # Skopeo login for your primary registry variable (works for sync)
+          skopeo login ${{ vars.REGISTRY }} \
+            -u ${{ secrets.REGISTRY_USER }} \
+            -p ${{ secrets.REGISTRY_TOKEN }}
+
+          # Docker login for scanners (Trivy/Grype)
+          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ vars.REGISTRY }} \
+            -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+
+          # Optional: Docker Hub if needed
+          # echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login docker.io \
+          #   -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+
+      - name: Parse images from YAML (your schema)
+        run: |
+          set -euo pipefail
+          : > images.txt
+
+          registries="$(yq -r 'keys | .[]' "$COLLECTOR_YAML")"
+          for reg in $registries; do
+            yq -r ".\"$reg\".\"images-by-tag-regex\" // {} | to_entries[] | \"\(.key)\t\(.value)\"" "$COLLECTOR_YAML" \
+            | while IFS=$'\t' read -r imgprefix regex; do
+                imgprefix="${imgprefix%:}"
+                tag="$(echo "$regex" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\^//' -e 's/\$$//')"
+
+                # enforce exact pins only
+                if echo "$tag" | grep -Eq '[\^\$\[\]\(\)\|\*\+\?\\]'; then
+                  echo "ERROR: Non-literal tag regex for $reg/$imgprefix => $regex"
+                  exit 1
+                fi
+
+                echo "${reg}/${imgprefix}:${tag}" >> images.txt
+              done
+          done
+
+          sort -u images.txt -o images.txt
+          echo "Images:"
+          nl -ba images.txt
+          test -s images.txt
+
+      - name: Trivy scan (report + compliance gate)
+        run: |
+          set -euo pipefail
+          mkdir -p scan-results/trivy
+          : > scan-results/trivy-report.txt
+
+          while read -r img; do
+            safe="$(echo "$img" | tr '/:@' '___')"
+            echo "=== $img ===" | tee -a scan-results/trivy-report.txt
+
+            # report (doesn't stop the loop)
+            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format table "$img" \
+              | tee -a scan-results/trivy-report.txt || true
+
+            # json evidence
+            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format json "$img" \
+              > "scan-results/trivy/${safe}.json" || true
+
+            echo "" >> scan-results/trivy-report.txt
+          done < images.txt
+
+          # fail if any findings of the chosen severities appear
+          if grep -Eq 'HIGH|CRITICAL' scan-results/trivy-report.txt; then
+            echo "Compliance failed: HIGH/CRITICAL vulnerabilities found."
+            exit 1
+          fi
+
+      - name: Grype scan (compliance gate)
+        run: |
+          set -euo pipefail
+          mkdir -p scan-results/grype
+          while read -r img; do
+            safe="$(echo "$img" | tr '/:@' '___')"
+            grype "$img" --fail-on "$GRYPE_FAIL_ON" -o json > "scan-results/grype/${safe}.json"
+          done < images.txt
+
+      - name: Upload scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-scan
+          path: scan-results/
+          if-no-files-found: error
+
+      - name: Skopeo sync (dir mirror)
+        run: |
+          set -euo pipefail
+          skopeo sync --scoped --src yaml --dest dir \
+            "$COLLECTOR_YAML" "${COLLECTOR_NAME}"
+
+      - name: TAR + hash
+        run: |
+          set -euo pipefail
+          tar -cv -Ipigz \
+            -f "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz" "${COLLECTOR_NAME}" \
+            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz.txt"
+          sha256sum -b "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz" \
+            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz.sha"
+
+      - name: Make ISO + hash
+        run: |
+          set -euo pipefail
+          mkdir -p iso-root
+          mv "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz"* iso-root/ || true
+          mkisofs -J -R -v -T -l \
+            -V "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}" \
+            -A "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}" \
+            -o "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso" \
+            iso-root
+          implantisomd5 "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso"
+          sha256sum -b "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso" \
+            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso.sha"
+
+      - name: Upload ISO bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}
+          path: |
+            ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}.iso*
+          if-no-files-found: error
