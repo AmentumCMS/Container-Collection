@@ -10,60 +10,33 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
-  collect:
+  resolve:
+    name: Resolve image list
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      security-events: write
+    outputs:
+      date: ${{ steps.date.outputs.DATE }}
     env:
       COLLECTOR_YAML: ${{ inputs.collector_yaml }}
       COLLECTOR_NAME: ${{ inputs.collector_name }}
-      TRIVY_SEVERITY: "HIGH,CRITICAL"
-      GRYPE_FAIL_ON: "high"
     steps:
       - uses: actions/checkout@v4
 
       - name: Date stamp
         id: date
-        run: |
-          echo "DATE=$(date '+%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
+        run: echo "DATE=$(date '+%Y%m%d-%H%M')" >> "$GITHUB_OUTPUT"
 
-      - name: Install tools
+      - name: Install yq
         run: |
           set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y skopeo pigz mkisofs isomd5sum wget curl
-
-          # yq
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-          # Trivy
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sudo sh -s -- -b /usr/local/bin
-
-          # Grype
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
-            | sudo sh -s -- -b /usr/local/bin
-
-      - name: Registry login (skopeo + docker)
-        run: |
-          set -euo pipefail
-          # Skopeo login for your primary registry variable (works for sync)
-          skopeo login ${{ vars.REGISTRY }} \
-            -u ${{ secrets.REGISTRY_USER }} \
-            -p ${{ secrets.REGISTRY_TOKEN }}
-
-          # Docker login for scanners (Trivy/Grype)
-          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ vars.REGISTRY }} \
-            -u "${{ secrets.REGISTRY_USER }}" --password-stdin
-
-          # Optional: Docker Hub if needed
-          # echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login docker.io \
-          #   -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
-
-      - name: Parse images from YAML (your schema)
+      - name: Resolve images from YAML -> images.txt
         run: |
           set -euo pipefail
           : > images.txt
@@ -75,7 +48,7 @@ jobs:
                 imgprefix="${imgprefix%:}"
                 tag="$(echo "$regex" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^\^//' -e 's/\$$//')"
 
-                # enforce exact pins only
+                # exact-pin only
                 if echo "$tag" | grep -Eq '[\^\$\[\]\(\)\|\*\+\?\\]'; then
                   echo "ERROR: Non-literal tag regex for $reg/$imgprefix => $regex"
                   exit 1
@@ -86,11 +59,54 @@ jobs:
           done
 
           sort -u images.txt -o images.txt
-          echo "Images:"
+          echo "Resolved images:"
           nl -ba images.txt
           test -s images.txt
 
-      - name: Trivy scan (report + compliance gate)
+      - name: Upload images.txt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-imagelist
+          path: images.txt
+          if-no-files-found: error
+
+  scan:
+    name: Compliance scan (Trivy + Grype)
+    runs-on: ubuntu-24.04
+    needs: [resolve]
+    env:
+      COLLECTOR_NAME: ${{ inputs.collector_name }}
+      DATE: ${{ needs.resolve.outputs.date }}
+      TRIVY_SEVERITY: "HIGH,CRITICAL"
+      GRYPE_FAIL_ON: "high"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download images.txt
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-imagelist
+          path: .
+
+      - name: Install Trivy + Grype
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y curl
+
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
+      - name: Docker login (for scanning pulls)
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ vars.REGISTRY }} \
+            -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+
+      - name: Trivy scan (report + gate)
         run: |
           set -euo pipefail
           mkdir -p scan-results/trivy
@@ -100,24 +116,21 @@ jobs:
             safe="$(echo "$img" | tr '/:@' '___')"
             echo "=== $img ===" | tee -a scan-results/trivy-report.txt
 
-            # report (doesn't stop the loop)
             trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format table "$img" \
               | tee -a scan-results/trivy-report.txt || true
 
-            # json evidence
             trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format json "$img" \
               > "scan-results/trivy/${safe}.json" || true
 
             echo "" >> scan-results/trivy-report.txt
           done < images.txt
 
-          # fail if any findings of the chosen severities appear
           if grep -Eq 'HIGH|CRITICAL' scan-results/trivy-report.txt; then
             echo "Compliance failed: HIGH/CRITICAL vulnerabilities found."
             exit 1
           fi
 
-      - name: Grype scan (compliance gate)
+      - name: Grype scan (gate)
         run: |
           set -euo pipefail
           mkdir -p scan-results/grype
@@ -130,9 +143,33 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-scan
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-scan
           path: scan-results/
           if-no-files-found: error
+
+  sync:
+    name: Skopeo sync + package mirror
+    runs-on: ubuntu-24.04
+    needs: [resolve, scan]
+    env:
+      COLLECTOR_YAML: ${{ inputs.collector_yaml }}
+      COLLECTOR_NAME: ${{ inputs.collector_name }}
+      DATE: ${{ needs.resolve.outputs.date }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install skopeo + pigz
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y skopeo pigz
+
+      - name: Skopeo login
+        run: |
+          set -euo pipefail
+          skopeo login ${{ vars.REGISTRY }} \
+            -u ${{ secrets.REGISTRY_USER }} \
+            -p ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Skopeo sync (dir mirror)
         run: |
@@ -140,33 +177,67 @@ jobs:
           skopeo sync --scoped --src yaml --dest dir \
             "$COLLECTOR_YAML" "${COLLECTOR_NAME}"
 
-      - name: TAR + hash
+      - name: TAR mirror + hash
         run: |
           set -euo pipefail
           tar -cv -Ipigz \
-            -f "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz" "${COLLECTOR_NAME}" \
-            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz.txt"
-          sha256sum -b "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz" \
-            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz.sha"
+            -f "${COLLECTOR_NAME}-${DATE}.tgz" "${COLLECTOR_NAME}" \
+            | tee "${COLLECTOR_NAME}-${DATE}.tgz.txt"
+
+          sha256sum -b "${COLLECTOR_NAME}-${DATE}.tgz" \
+            | tee "${COLLECTOR_NAME}-${DATE}.tgz.sha"
+
+      - name: Upload mirror tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
+          path: |
+            ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.tgz*
+          if-no-files-found: error
+
+  iso:
+    name: Build ISO
+    runs-on: ubuntu-24.04
+    needs: [resolve, sync]
+    env:
+      COLLECTOR_NAME: ${{ inputs.collector_name }}
+      DATE: ${{ needs.resolve.outputs.date }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mkisofs + isomd5sum
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y mkisofs isomd5sum
+
+      - name: Download mirror tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
+          path: .
 
       - name: Make ISO + hash
         run: |
           set -euo pipefail
           mkdir -p iso-root
-          mv "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.tgz"* iso-root/ || true
+          cp "${COLLECTOR_NAME}-${DATE}.tgz"* iso-root/
+
           mkisofs -J -R -v -T -l \
-            -V "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}" \
-            -A "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}" \
-            -o "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso" \
+            -V "${COLLECTOR_NAME}-${DATE}" \
+            -A "${COLLECTOR_NAME}-${DATE}" \
+            -o "${COLLECTOR_NAME}-${DATE}.iso" \
             iso-root
-          implantisomd5 "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso"
-          sha256sum -b "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso" \
-            | tee "${COLLECTOR_NAME}-${{ steps.date.outputs.DATE }}.iso.sha"
+
+          implantisomd5 "${COLLECTOR_NAME}-${DATE}.iso"
+
+          sha256sum -b "${COLLECTOR_NAME}-${DATE}.iso" \
+            | tee "${COLLECTOR_NAME}-${DATE}.iso.sha"
 
       - name: Upload ISO bundle
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-iso
           path: |
-            ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}.iso*
+            ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.iso*
           if-no-files-found: error
