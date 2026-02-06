@@ -180,19 +180,33 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sudo bash
           helm version
 
-      - name: Fetch chart + evidence
+      - name: Grab helm
+        shell: bash
         run: |
           set -euo pipefail
-          outdir="${COLLECTOR_NAME}/helmchart"
-          mkdir -p "$outdir"
-          cd "$outdir"
 
-          helm repo add "$HELM_REPO_NAME" "$HELM_REPO_URL"
+          mkdir -p "${COLLECTOR_NAME}/helmchart"
+          cd "${COLLECTOR_NAME}/helmchart"
+
+          echo -e "\nSet repo and pull chart"
+          helm repo add "${HELM_REPO}" "${HELM_URL}"
           helm repo update
-          helm pull "$HELM_REPO_NAME/$HELM_CHART" --untar || helm pull "$HELM_REPO_NAME/$HELM_CHART"
 
-          sha256sum -b * | tee "../${COLLECTOR_NAME}-${DATE}.helm.sha"
-          ls -Alh
+          # OLD BEHAVIOR: no --untar (downloads a .tgz)
+          helm pull "${HELM_REPO}/${HELM_NAME}"
+
+          echo -e "\nInstall helm images plugin"
+          helm plugin install https://github.com/nikhilsbhat/helm-images > /dev/null 2>&1 || true
+
+          echo -e "\nImages listed in chart"
+          helm images get "${HELM_REPO}/${HELM_NAME}" || true
+
+          echo -e "\n\nHelmchart Hash"
+          # Old version did: sha256sum -b *
+          # Safer equivalent: hash only files in this directory (prevents directory errors)
+          sha256sum -b ./* 2>/dev/null | tee "../${COLLECTOR_NAME}-${DATE}.helm.sha"
+
+          echo -e "\n\nList files:\n$(pwd; ls -1SSh)"
 
       - name: Upload Helm chart artifact
         uses: actions/upload-artifact@v4
@@ -206,7 +220,7 @@ jobs:
   sync:
     name: Skopeo sync + package mirror
     runs-on: ubuntu-24.04
-    needs: [resolve, scan]
+    needs: [resolve, scan, helm]
     env:
       COLLECTOR_YAML: ${{ inputs.collector_yaml }}
       COLLECTOR_NAME: ${{ inputs.collector_name }}
