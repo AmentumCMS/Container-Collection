@@ -5,6 +5,10 @@ on:
     branches-ignore: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  security-events: write
+
 jobs:
   run:
     strategy:
