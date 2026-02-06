@@ -1,114 +1,25 @@
-name: Container-Collection (Branch)
-run-name: ${{ github.actor }} is Collecting Images 🚀
+name: Collect All (Branch)
+
 on:
   push:
-    branches-ignore:
-      - main
-  release:
-    types: [edited, released]
+    branches-ignore: [main]
   workflow_dispatch:
 
 jobs:
-  Date:
-    runs-on: ubuntu-24.04
-    outputs:
-      Date: ${{ steps.date.outputs.date }}
-    steps:
-      - name: Get current date
-        id: DATE
-        run: |
-          echo "DATE=$(date '+%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
-          echo -e "\n$GITHUB_OUTPUT\n"
-          cat $GITHUB_OUTPUT
-
-  Collect-Images:
-    needs: [Date]
-    runs-on: ubuntu-24.04
-    env:
-      GH_TOKEN: ${{ github.token }}
+  run:
     strategy:
-        matrix:
-            set: [Base-Images, Pipeline-Images, Atlassian-Images, Service-Images, Support-Images]
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
+      fail-fast: false
+      matrix:
+        include:
+          - name: kafka-ib
+            yaml: collectors/Kafka-IB.yml
+          - name: base
+            yaml: collectors/Base.yml
+          - name: pipeline
+            yaml: collectors/Pipeline.yml
 
-      - name: Run Collection Script for ${{ matrix.set }}.txt
-        run: ./collect.sh ${{ matrix.set }}.txt
-
-      - name: Remove ISO files
-        run: |
-          if [[ "${{ vars.KEEPISO }}" == "true" ]]; then
-            echo -e "\nKeeping ISO files\n"
-          else
-            echo -e "\nRemoving ISO files\n"
-            find . -iname *.iso* -type f -delete
-          fi
-
-      - name: Copy README to ${{ matrix.set }} ISO
-        run: cp -v README.md ${{ matrix.set }}/
-
-      - name: Install mkisofs
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum
-
-      - name: ISO Table of contents
-        run: |
-          tree -a ${{ matrix.set }} \
-            | tee ${{ matrix.set }}/${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso.txt
-
-      - name: Upload iso ToC artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso.txt
-          path: ${{ matrix.set }}/${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso.txt
-          if-no-files-found: error
-
-      - name: Directory Contents and Disc usage
-        run: |
-          echo -e "\nListing:\n$(ls -A1h ${{ matrix.set }}/*)"
-          echo -e "\nDisk Usage:\n$(du -hd1 ${{ matrix.set }}/*)"
-
-      - name: Make ${{ matrix.set }} ISO
-        run: |
-          echo "Making ISO of ${{ matrix.set }}"
-          mkisofs -J -R -v -T -l \
-            -V '${{ matrix.set }}-${{ needs.Date.outputs.Date }}' \
-            -A '${{ matrix.set }}-${{ needs.Date.outputs.Date }}' \
-            -o ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso \
-            ${{ matrix.set }}
-
-      - name: Implant MD5 sum into ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso
-        run: implantisomd5 ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso
-
-      - name: Generate ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso Hash
-        run: |
-          sha256sum -b ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso | tee \
-            ${{ matrix.set }}-${{ needs.Date.outputs.Date }}.iso.sha
-
-      - name: Show ISO & Hash
-        run: ls -Alht *.iso*
-
-  Release:
-    runs-on: ubuntu-24.04
-    needs: [Date, Collect-Images]
-    permissions:
-      contents: write
-      pull-requests: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
-          pattern: "*.txt"
-
-      - name: Show Artifacts
-        run: ls -A1h *.txt
-
-      # Create Release
+    uses: ./.github/workflows/collector-reusable.yml
+    with:
+      collector_name: ${{ matrix.name }}
+      collector_yaml: ${{ matrix.yaml }}
+    secrets: inherit
