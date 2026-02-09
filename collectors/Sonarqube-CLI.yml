@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/sonarsource/sonar-scanner-cli: (^11.[01]$)

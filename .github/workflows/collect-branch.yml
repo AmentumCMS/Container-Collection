@@ -24,6 +24,9 @@ jobs:
             helm_repo_url: https://argoproj.github.io/argo-helm
             helm_chart: argo-cd
 
+          - name: ast-cli
+            yaml: collectors/Ast-CLI.yml
+
           - name: bootc
             yaml: collectors/BootC.yml
             cred_profile: redhat
@@ -101,6 +104,9 @@ jobs:
           - name: skopeo-ib
             yaml: collectors/Skopeo-IB.yml
             helm: false
+
+          - name: sonarqube-cli
+            yaml: collectors/Sonarqube-CLI.yml
 
           - name: ubi-ib
             yaml: collectors/UBI-IB.yml
