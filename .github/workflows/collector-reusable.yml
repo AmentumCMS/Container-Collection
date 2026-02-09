@@ -99,6 +99,7 @@ jobs:
           yq -r 'keys | .[]' "$COLLECTOR_YAML" \
             | sort -u \
             | grep -vE '^(ghcr\.io)$' \
+            | grep -vE '(^|\.)(docker\.io)$' \
             > registries.txt
 
           echo "Registries:"
