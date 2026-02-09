@@ -170,6 +170,13 @@ jobs:
 
           while read -r reg; do
             [ -n "$reg" ] || continue
+
+            # skip non-FQDN-ish registry names
+            if [[ "$reg" != *.* && "$reg" != *:* && "$reg" != "localhost" ]]; then
+              echo "Skipping non-FQDN registry key: $reg"
+              continue
+            fi
+
             echo "Logging into docker registry: $reg"
             echo "$pass" | docker login "$reg" -u "$user" --password-stdin
           done < registries.txt
@@ -332,6 +339,13 @@ jobs:
 
           while read -r reg; do
             [ -n "$reg" ] || continue
+
+            # skip non-FQDN-ish registry names
+            if [[ "$reg" != *.* && "$reg" != *:* && "$reg" != "localhost" ]]; then
+              echo "Skipping non-FQDN registry key: $reg"
+              continue
+            fi
+
             echo "Skopeo login: $reg"
             skopeo login "$reg" -u "$user" -p "$pass"
           done < registries.txt
