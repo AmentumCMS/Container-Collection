@@ -90,7 +90,6 @@ jobs:
           sort -u images.txt -o images.txt
           echo "Resolved images:"
           nl -ba images.txt
-          test -s images.txt
 
       - name: Save registry list (for logins)
         run: |
