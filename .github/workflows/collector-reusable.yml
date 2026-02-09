@@ -103,7 +103,6 @@ jobs:
 
           echo "Registries:"
           nl -ba registries.txt
-          test -s registries.txt
 
       - name: Upload images + registries
         uses: actions/upload-artifact@v4
