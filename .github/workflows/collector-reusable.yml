@@ -95,7 +95,7 @@ jobs:
       - name: Save registry list (for logins)
         run: |
           set -euo pipefail
-                    
+
           yq -r 'keys | .[]' "$COLLECTOR_YAML" \
             | sort -u \
             | grep -vE '^(ghcr\.io)$' \
@@ -140,12 +140,12 @@ jobs:
           set -euo pipefail
           case "${CRED_PROFILE}" in
             redhat)
-              echo "user=${{ secrets.redhat_user }}" >> "$GITHUB_OUTPUT"
-              echo "pass=${{ secrets.redhat_pass }}" >> "$GITHUB_OUTPUT"
+              echo 'user=${{ secrets.redhat_user }}' >> "$GITHUB_OUTPUT"
+              echo 'pass=${{ secrets.redhat_pass }}' >> "$GITHUB_OUTPUT"
               ;;
             default|*)
-              echo "user=${{ secrets.default_user }}" >> "$GITHUB_OUTPUT"
-              echo "pass=${{ secrets.default_pass }}" >> "$GITHUB_OUTPUT"
+              echo 'user=${{ secrets.default_user }}' >> "$GITHUB_OUTPUT"
+              echo 'pass=${{ secrets.default_pass }}' >> "$GITHUB_OUTPUT"
               ;;
           esac
 
