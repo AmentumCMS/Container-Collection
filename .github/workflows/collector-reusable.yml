@@ -99,10 +99,15 @@ jobs:
             | sort -u \
             | grep -vE '^(ghcr\.io)$' \
             | grep -vE '(^|\.)(docker\.io)$' \
-            > registries.txt
+            > registries.txt || true
 
           echo "Registries:"
-          nl -ba registries.txt
+          if [ -s registries.txt ]; then
+            nl -ba registries.txt
+          else
+            echo "(none)"
+          fi
+
 
       - name: Upload images + registries
         uses: actions/upload-artifact@v4
