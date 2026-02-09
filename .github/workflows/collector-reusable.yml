@@ -95,7 +95,12 @@ jobs:
       - name: Save registry list (for logins)
         run: |
           set -euo pipefail
-          yq -r 'keys | .[]' "$COLLECTOR_YAML" | sort -u > registries.txt
+                    
+          yq -r 'keys | .[]' "$COLLECTOR_YAML" \
+            | sort -u \
+            | grep -vE '^(ghcr\.io)$' \
+            > registries.txt
+
           echo "Registries:"
           nl -ba registries.txt
           test -s registries.txt
