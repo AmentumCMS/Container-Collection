@@ -195,7 +195,7 @@ jobs:
 
           while read -r img; do
             [ -n "$img" ] || continue
-            safe="$(echo "$img" | tr '/:@' '___')"
+            safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
             echo "=== $img ===" | tee -a scan-results/trivy-report.txt
 
             trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format table "$img" \
@@ -218,7 +218,7 @@ jobs:
           mkdir -p scan-results/grype
           while read -r img; do
             [ -n "$img" ] || continue
-            safe="$(echo "$img" | tr '/:@' '___')"
+            safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
             grype "$img" --fail-on "$GRYPE_FAIL_ON" -o json > "scan-results/grype/${safe}.json"
           done < images.txt
 
