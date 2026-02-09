@@ -9,6 +9,12 @@ on:
       collector_name:
         required: true
         type: string
+
+      cred_profile:
+        required: false
+        type: string
+        default: default
+
       collect_helm:
         required: false
         type: boolean
@@ -22,6 +28,16 @@ on:
       helm_chart:
         required: false
         type: string
+
+    secrets:
+      default_user:
+        required: false
+      default_pass:
+        required: false
+      redhat_user:
+        required: false
+      redhat_pass:
+        required: false
 
 permissions:
   contents: read
@@ -76,11 +92,21 @@ jobs:
           nl -ba images.txt
           test -s images.txt
 
-      - name: Upload images.txt
+      - name: Save registry list (for logins)
+        run: |
+          set -euo pipefail
+          yq -r 'keys | .[]' "$COLLECTOR_YAML" | sort -u > registries.txt
+          echo "Registries:"
+          nl -ba registries.txt
+          test -s registries.txt
+
+      - name: Upload images + registries
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-imagelist
-          path: images.txt
+          name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-resolve
+          path: |
+            images.txt
+            registries.txt
           if-no-files-found: error
 
   scan:
@@ -92,14 +118,31 @@ jobs:
       DATE: ${{ needs.resolve.outputs.date }}
       TRIVY_SEVERITY: "HIGH,CRITICAL"
       GRYPE_FAIL_ON: "high"
+      CRED_PROFILE: ${{ inputs.cred_profile }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download images.txt
+      - name: Download resolved inputs
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-imagelist
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-resolve
           path: .
+
+      - name: Pick credentials
+        id: creds
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${CRED_PROFILE}" in
+            redhat)
+              echo "user=${{ secrets.redhat_user }}" >> "$GITHUB_OUTPUT"
+              echo "pass=${{ secrets.redhat_pass }}" >> "$GITHUB_OUTPUT"
+              ;;
+            default|*)
+              echo "user=${{ secrets.default_user }}" >> "$GITHUB_OUTPUT"
+              echo "pass=${{ secrets.default_pass }}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Install Trivy + Grype
         run: |
@@ -113,11 +156,23 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
             | sudo sh -s -- -b /usr/local/bin
 
-      - name: Docker login (for scanning pulls)
+      - name: Docker login to registries from YAML (for scanning pulls)
+        shell: bash
         run: |
           set -euo pipefail
-          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login ${{ vars.REGISTRY }} \
-            -u "${{ secrets.REGISTRY_USER }}" --password-stdin
+          user='${{ steps.creds.outputs.user }}'
+          pass='${{ steps.creds.outputs.pass }}'
+
+          if [ -z "$user" ] || [ -z "$pass" ]; then
+            echo "ERROR: missing credentials for profile '$CRED_PROFILE'"
+            exit 1
+          fi
+
+          while read -r reg; do
+            [ -n "$reg" ] || continue
+            echo "Logging into docker registry: $reg"
+            echo "$pass" | docker login "$reg" -u "$user" --password-stdin
+          done < registries.txt
 
       - name: Trivy scan (report + gate)
         run: |
@@ -126,6 +181,7 @@ jobs:
           : > scan-results/trivy-report.txt
 
           while read -r img; do
+            [ -n "$img" ] || continue
             safe="$(echo "$img" | tr '/:@' '___')"
             echo "=== $img ===" | tee -a scan-results/trivy-report.txt
 
@@ -148,6 +204,7 @@ jobs:
           set -euo pipefail
           mkdir -p scan-results/grype
           while read -r img; do
+            [ -n "$img" ] || continue
             safe="$(echo "$img" | tr '/:@' '___')"
             grype "$img" --fail-on "$GRYPE_FAIL_ON" -o json > "scan-results/grype/${safe}.json"
           done < images.txt
@@ -163,7 +220,7 @@ jobs:
   helm:
     name: Collect Helm chart
     runs-on: ubuntu-24.04
-    needs: [resolve] # Should be after scan later, but I want to test
+    needs: [resolve]
     if: ${{ inputs.collect_helm }}
     env:
       COLLECTOR_NAME: ${{ inputs.collector_name }}
@@ -191,8 +248,6 @@ jobs:
           echo -e "\nSet repo and pull chart"
           helm repo add "${HELM_REPO_NAME}" "${HELM_REPO_URL}"
           helm repo update
-
-          # OLD BEHAVIOR: no --untar (downloads a .tgz)
           helm pull "${HELM_REPO_NAME}/${HELM_CHART}"
 
           echo -e "\nInstall helm images plugin"
@@ -202,9 +257,8 @@ jobs:
           helm images get "${HELM_REPO_NAME}/${HELM_CHART}" || true
 
           echo -e "\n\nHelmchart Hash"
-          # Old version did: sha256sum -b *
-          # Safer equivalent: hash only files in this directory (prevents directory errors)
-          sha256sum -b ./* 2>/dev/null | tee "../${COLLECTOR_NAME}-${DATE}.helm.sha"
+          # Avoid "Is a directory" by hashing only regular files
+          find . -maxdepth 1 -type f -print0 | xargs -0 sha256sum -b | tee "../${COLLECTOR_NAME}-${DATE}.helm.sha"
 
           echo -e "\n\nList files:\n$(pwd; ls -1SSh)"
 
@@ -225,8 +279,16 @@ jobs:
       COLLECTOR_YAML: ${{ inputs.collector_yaml }}
       COLLECTOR_NAME: ${{ inputs.collector_name }}
       DATE: ${{ needs.resolve.outputs.date }}
+      CRED_PROFILE: ${{ inputs.cred_profile }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download resolved inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-resolve
+          path: .
+
       - name: Download Helm chart (if enabled)
         if: ${{ inputs.collect_helm }}
         uses: actions/download-artifact@v4
@@ -234,18 +296,45 @@ jobs:
           name: ${{ inputs.collector_name }}-${{ env.DATE }}-helm
           path: .
 
+      - name: Pick credentials
+        id: creds
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${CRED_PROFILE}" in
+            redhat)
+              echo "user=${{ secrets.redhat_user }}" >> "$GITHUB_OUTPUT"
+              echo "pass=${{ secrets.redhat_pass }}" >> "$GITHUB_OUTPUT"
+              ;;
+            default|*)
+              echo "user=${{ secrets.default_user }}" >> "$GITHUB_OUTPUT"
+              echo "pass=${{ secrets.default_pass }}" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
       - name: Install skopeo + pigz
         run: |
           set -euo pipefail
           sudo apt-get update -y
           sudo apt-get install -y skopeo pigz
 
-      - name: Skopeo login
+      - name: Skopeo login to registries from YAML
+        shell: bash
         run: |
           set -euo pipefail
-          skopeo login ${{ vars.REGISTRY }} \
-            -u ${{ secrets.REGISTRY_USER }} \
-            -p ${{ secrets.REGISTRY_TOKEN }}
+          user='${{ steps.creds.outputs.user }}'
+          pass='${{ steps.creds.outputs.pass }}'
+
+          if [ -z "$user" ] || [ -z "$pass" ]; then
+            echo "ERROR: missing credentials for profile '$CRED_PROFILE'"
+            exit 1
+          fi
+
+          while read -r reg; do
+            [ -n "$reg" ] || continue
+            echo "Skopeo login: $reg"
+            skopeo login "$reg" -u "$user" -p "$pass"
+          done < registries.txt
 
       - name: Skopeo sync (dir mirror)
         run: |

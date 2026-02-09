@@ -26,6 +26,7 @@ jobs:
 
           - name: bootc
             yaml: collectors/BootC.yml
+            cred_profile: redhat
             helm: false
 
           - name: haproxy-ib
@@ -75,7 +76,7 @@ jobs:
           - name: packer-ib
             yaml: collectors/Packer-IB.yml
             helm: false
-            
+
           - name: postgres-ib
             yaml: collectors/PostgreSQL-IB.yml
             helm: true
@@ -109,8 +110,17 @@ jobs:
     with:
       collector_name: ${{ matrix.name }}
       collector_yaml: ${{ matrix.yaml }}
+      cred_profile: ${{ matrix.cred_profile }}
+
       collect_helm: ${{ matrix.helm }}
       helm_repo_name: ${{ matrix.helm_repo_name }}
       helm_repo_url: ${{ matrix.helm_repo_url }}
       helm_chart: ${{ matrix.helm_chart }}
-    secrets: inherit
+    secrets:
+      # default creds (ex: registry1.dso.mil)
+      default_user: ${{ secrets.REGISTRY_USER }}
+      default_pass: ${{ secrets.REGISTRY_TOKEN }}
+
+      # redhat creds
+      redhat_user: ${{ secrets.REDHAT_USER }}
+      redhat_pass: ${{ secrets.REDHAT_PASS }}
