@@ -26,6 +26,7 @@ jobs:
 
           - name: ast-cli
             yaml: collectors/Ast-CLI.yml
+            helm: false
 
           - name: bootc
             yaml: collectors/BootC.yml
@@ -107,6 +108,7 @@ jobs:
 
           - name: sonarqube-cli
             yaml: collectors/Sonarqube-CLI.yml
+            helm: false
 
           - name: ubi-ib
             yaml: collectors/UBI-IB.yml
