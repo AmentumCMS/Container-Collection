@@ -47,9 +47,7 @@ def generate_text_report(reports):
     with open('combined-reports/compliance_table.txt', 'w') as f:
         f.write("\n".join(lines))
 
-def generate():
-    with open('merged_results.json', 'r') as f:
-        reports = json.load(f)
+def generate(reports):
 
     template_str = """
     <!DOCTYPE html>
@@ -133,5 +131,7 @@ def generate():
         f.write(output)
 
 if __name__ == "__main__":
-    generate()
-    generate_text_report()
+    with open('merged_results.json', 'r') as f:
+        reports = json.load(f)
+        generate(reports)
+        generate_text_report(reports)
