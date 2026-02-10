@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/atlassian/confluence-data-center/confluence-node-lts: ^8.5.18$

@@ -1,0 +1,7 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/atlassian/bamboo-data-center/bamboo-server-lts: ^9.6.8$
+docker.io:
+    images-by-tag-regex:
+        atlassian/bamboo-specs-runner: ^9.6.8$
+        atlassian/bamboo-agent-base: ^9.6.8-ubi9$

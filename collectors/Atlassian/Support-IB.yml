@@ -1,0 +1,4 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/atlassian/fisheye-crucible: ^4.8.15$
+        ironbank/atlassian/crowd-data-center: ^5.3.1$

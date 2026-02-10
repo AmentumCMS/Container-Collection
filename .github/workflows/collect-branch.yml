@@ -33,6 +33,18 @@ jobs:
             cred_profile: redhat
             helm: false
 
+          - name: atlassian-bamboo-ib
+            yaml: collectors/Atlassian/Bamboo-IB.yml
+            helm: false
+
+          - name: atlassian-bitbucket-ib
+            yaml: collectors/Atlassian/Bitbucket-IB.yml
+            helm: false
+
+          - name: atlassian-confluence-ib
+            yaml: collectors/Atlassian/Confluence-IB.yml
+            helm: false
+
           - name: haproxy-ib
             yaml: collectors/HAProxy-IB.yml
             helm: true
@@ -42,6 +54,10 @@ jobs:
 
           - name: jdk-ib
             yaml: collectors/JDK-IB.yml
+            helm: false
+
+          - name: atlassian-jira-ib
+            yaml: collectors/Atlassian/Jira-IB.yml
             helm: false
 
           - name: kafka-ib
@@ -102,12 +118,20 @@ jobs:
             helm_repo_url: https://charts.bitnami.com/bitnami/
             helm_chart: redis
 
+          - name: atlassian-search-ib
+            yaml: collectors/Atlassian/Search-IB.yml
+            helm: false
+
           - name: skopeo-ib
             yaml: collectors/Skopeo-IB.yml
             helm: false
 
           - name: sonarqube-cli
             yaml: collectors/Sonarqube-CLI.yml
+            helm: false
+
+          - name: atlassian-support-ib
+            yaml: collectors/Atlassian/Support-IB.yml
             helm: false
 
           - name: ubi-ib

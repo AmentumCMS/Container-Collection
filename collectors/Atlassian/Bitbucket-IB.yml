@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/atlassian/bitbucket-data-center/bitbucket-node-lts: ^8.19.12$
