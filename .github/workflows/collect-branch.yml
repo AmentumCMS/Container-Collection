@@ -17,21 +17,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: argocd-ib
-            yaml: collectors/ArgoCD-IB.yml
-            helm: true
-            helm_repo_name: argo
-            helm_repo_url: https://argoproj.github.io/argo-helm
-            helm_chart: argo-cd
+          # - name: argocd-ib
+          #   yaml: collectors/ArgoCD-IB.yml
+          #   helm: true
+          #   helm_repo_name: argo
+          #   helm_repo_url: https://argoproj.github.io/argo-helm
+          #   helm_chart: argo-cd
 
           - name: ast-cli
             yaml: collectors/Ast-CLI.yml
             helm: false
 
-          - name: bootc
-            yaml: collectors/BootC.yml
-            cred_profile: redhat
-            helm: false
+          # - name: bootc
+          #   yaml: collectors/BootC.yml
+          #   cred_profile: redhat
+          #   helm: false
 
           # - name: atlassian-bamboo-ib
           #   yaml: collectors/Atlassian/Bamboo-IB.yml
@@ -192,11 +192,8 @@ jobs:
           find all-scans -name "trivy-report.txt" -exec cat {} >> combined-reports/trivy-summary-all.txt \;
 
           # 3. Combine JSON (Removing the ** recursion since files are now flat)
-          # Flatten JSONs into one report object, mapping image name to Target
-          jq -s '{ 
-            SchemaVersion: 2, 
-            Results: [ .[] | .ArtifactName as $name | .Results[] | .Target = $name ] 
-          }' all-scans/**/trivy/*.json > merged_results.json
+          # Combine all individual JSON reports into a single JSON array
+          jq -s '.' combined-reports/trivy/*.json > merged_results.json
 
           # 4. Render the Reports
           trivy convert --format template \
