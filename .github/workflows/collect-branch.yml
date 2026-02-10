@@ -192,21 +192,19 @@ jobs:
           find all-scans -name "trivy-report.txt" -exec cat {} >> combined-reports/trivy-summary-all.txt \;
 
           # 3. Combine JSON (Removing the ** recursion since files are now flat)
-          # We check if any files exist first to avoid jq errors
-          if ls combined-reports/trivy/*.json >/dev/null 2>&1; then
-            jq -s '{ SchemaVersion: 2, Results: [.[].Results[] | select(. != null)] }' combined-reports/trivy/*.json > merged_results.json
-          else
-            echo "No Trivy JSON files found to merge."
-            exit 1
-          fi
+          # Flatten JSONs into one report object, mapping image name to Target
+          jq -s '{ 
+            SchemaVersion: 2, 
+            Results: [ .[] | .ArtifactName as $name | .Results[] | .Target = $name ] 
+          }' all-scans/**/trivy/*.json > merged_results.json
 
           # 4. Render the Reports
           trivy convert --format template \
-            --template "@html.tpl" \
+            --template "@combined-html.tpl" \
             -o "combined-reports/overview.html" merged_results.json
 
           trivy convert --format template \
-            --template "@trivy.tpl" \
+            --template "@combined-trivy.tpl" \
             -o "combined-reports/compliance_table.txt" merged_results.json
 
       - name: Upload Combined Artifacts
