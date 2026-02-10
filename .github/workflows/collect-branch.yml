@@ -195,16 +195,12 @@ jobs:
           # Combine all individual JSON reports into a single JSON array
           jq -s '.' combined-reports/trivy/*.json > merged_results.json
 
-          # 4. Render the Reports
-          trivy image --quiet --input merged_results.json \
-            --format template \
-            --template "@combined-html.tpl" \
-            -o "combined-reports/overview.html"
-
-          trivy image --quiet --input merged_results.json \
-            --format template \
-            --template "@combined-trivy.tpl" \
-            -o "combined-reports/compliance_table.txt"
+      - name: Generate Consolidated Report
+        run: |
+          pip install jinja2
+          # Merge all artifacts into a single array
+          jq -s '.' combined-reports/trivy/*.json > merged_results.json
+          python3 generate_report.py
 
       - name: Upload Combined Artifacts
         uses: actions/upload-artifact@v4
