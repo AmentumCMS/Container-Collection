@@ -210,12 +210,12 @@ jobs:
 
             # 2. CONVERT TO TEXT (Appended for Cyber)
             echo "=== $img ===" >> scan-results/trivy-report.txt
-            trivy convert --format template --template "@trivy.tpl" \
+            trivy convert --format template --template "@scripts/trivy.tpl" \
               "$json_file" >> scan-results/trivy-report.txt || true
             echo -e "\n" >> scan-results/trivy-report.txt
 
             # 3. CONVERT TO HTML (Individual file)
-            trivy convert --format template --template "@html.tpl" \
+            trivy convert --format template --template "@scripts/html.tpl" \
               -o "scan-results/trivy-html/${safe}.html" "$json_file" || true
 
           done < images.txt
