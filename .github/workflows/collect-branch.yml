@@ -183,6 +183,15 @@ jobs:
           echo "GLOBAL TRIVY SECURITY SUMMARY" > combined-reports/trivy-summary-all.txt
           find all-scans -name "trivy-report.txt" -exec cat {} >> combined-reports/trivy-summary-all.txt \;
 
+          # 1. Combine all JSON files into one big array for the template
+          # Trivy templates expect a list of Results
+          jq -s '[.[].Results[]]' all-results/**/*.json > merged_results.json
+
+          # 2. Render the HTML Overview
+          trivy convert --format template \
+            --template "@html.tpl" \
+            -o "combined-reports/overview.html" merged_results.json
+
       - name: Upload Combined Artifacts
         uses: actions/upload-artifact@v4
         with:
