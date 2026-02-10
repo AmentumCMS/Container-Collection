@@ -210,6 +210,14 @@ jobs:
             echo "" >> scan-results/trivy-report.txt
           done < images.txt
 
+          # 3. Generate the Individual HTML Report
+            trivy image --quiet --scanners vuln \
+              --severity "$TRIVY_SEVERITY" \
+              --format template \
+              --template "@html.tpl" \
+              -o "scan-results/trivy-html/${safe_name}.html" \
+              "$img" || true
+
           if grep -Eq 'HIGH|CRITICAL' scan-results/trivy-report.txt; then
             echo "Compliance failed: HIGH/CRITICAL vulnerabilities found."
             exit 1

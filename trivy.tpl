@@ -1,15 +1,16 @@
+{{- if . -}}
 {{- range . }}
-  {{- range .Results }}
-    {{- if .Vulnerabilities }}
-IMAGE: {{ $.ArtifactName }}
-Target: {{ .Target }}
+{{- if (gt (len .Vulnerabilities) 0) }}
+TARGET: {{ .Target }} ({{ .Type }})
 ┌────────────────┬──────────────────────┬──────────┬───────────────────┬───────────────────┐
-│ Library        │ Vulnerability ID     │ Severity │ Installed Version │ Fixed Version     │
+│ Package        │ Vulnerability ID     │ Severity │ Installed Version │ Fixed Version     │
 ├────────────────┼──────────────────────┼──────────┼───────────────────┼───────────────────┤
-      {{- range .Vulnerabilities }}
+{{- range .Vulnerabilities }}
 │ {{ printf "%-14.14s" .PkgName }} │ {{ printf "%-20s" .VulnerabilityID }} │ {{ printf "%-8s" .Severity }} │ {{ printf "%-17.17s" .InstalledVersion }} │ {{ printf "%-17.17s" (default "N/A" .FixedVersion) }} │
-      {{- end }}
+{{- end }}
 └────────────────┴──────────────────────┴──────────┴───────────────────┴───────────────────┘
-    {{- end }}
-  {{- end }}
+{{- end }}
+{{- end }}
+{{- else }}
+Trivy Returned Empty Report
 {{- end }}
