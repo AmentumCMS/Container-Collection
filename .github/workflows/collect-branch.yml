@@ -185,7 +185,7 @@ jobs:
 
           # 1. Combine all JSON files into one big array for the template
           # Trivy templates expect a list of Results
-          jq -s '[.[].Results[]]' all-results/**/*.json > merged_results.json
+          jq -s '[.[].Results[]]' all-scans/**/*.json > merged_results.json
 
           # 2. Render the HTML Overview
           trivy convert --format template \
