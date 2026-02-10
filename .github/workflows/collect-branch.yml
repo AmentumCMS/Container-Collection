@@ -170,27 +170,35 @@ jobs:
 
       - name: Merge Reports
         run: |
+          set -euo pipefail
           mkdir -p combined-reports/trivy
           mkdir -p combined-reports/grype
           
-          # Find all trivy json files and move to combined folder
+          # 1. Collect files from matrix artifacts
           find all-scans -path "*/trivy/*.json" -exec cp {} combined-reports/trivy/ \;
-          
-          # Find all grype json files and move to combined folder
           find all-scans -path "*/grype/*.json" -exec cp {} combined-reports/grype/ \;
           
-          # Combine the human-readable trivy text reports into one big file
+          # 2. Build text summary
           echo "GLOBAL TRIVY SECURITY SUMMARY" > combined-reports/trivy-summary-all.txt
           find all-scans -name "trivy-report.txt" -exec cat {} >> combined-reports/trivy-summary-all.txt \;
 
-          # 1. Combine all JSON files into one big array for the template
-          # Trivy templates expect a list of Results
-          jq -s '[.[].Results[]]' combined-reports/trivy/**/*.json > merged_results.json
+          # 3. Combine JSON (Removing the ** recursion since files are now flat)
+          # We check if any files exist first to avoid jq errors
+          if ls combined-reports/trivy/*.json >/dev/null 2>&1; then
+            jq -s '[.[].Results[] | select(. != null)]' combined-reports/trivy/*.json > merged_results.json
+          else
+            echo "No Trivy JSON files found to merge."
+            exit 1
+          fi
 
-          # 2. Render the HTML Overview
+          # 4. Render the Reports
           trivy convert --format template \
             --template "@html.tpl" \
             -o "combined-reports/overview.html" merged_results.json
+
+          trivy convert --format template \
+            --template "@trivy.tpl" \
+            -o "combined-reports/compliance_table.txt" merged_results.json
 
       - name: Upload Combined Artifacts
         uses: actions/upload-artifact@v4
