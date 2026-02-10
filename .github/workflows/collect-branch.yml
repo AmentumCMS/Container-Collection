@@ -196,13 +196,15 @@ jobs:
           jq -s '.' combined-reports/trivy/*.json > merged_results.json
 
           # 4. Render the Reports
-          trivy convert --format template \
+          trivy image --quiet --input merged_results.json \
+            --format template \
             --template "@combined-html.tpl" \
-            -o "combined-reports/overview.html" merged_results.json
+            -o "combined-reports/overview.html"
 
-          trivy convert --format template \
+          trivy image --quiet --input merged_results.json \
+            --format template \
             --template "@combined-trivy.tpl" \
-            -o "combined-reports/compliance_table.txt" merged_results.json
+            -o "combined-reports/compliance_table.txt"
 
       - name: Upload Combined Artifacts
         uses: actions/upload-artifact@v4
