@@ -190,7 +190,7 @@ jobs:
             echo "$pass" | docker login "$reg" -u "$user" --password-stdin
           done < registries.txt
 
-      - name: Trivy scan (report + gate)
+      - name: Trivy scan
         run: |
           set -euo pipefail
           mkdir -p scan-results/trivy
@@ -200,25 +200,27 @@ jobs:
           while read -r img; do
             [ -n "$img" ] || continue
             safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
-            echo "=== $img ===" | tee -a scan-results/trivy-report.txt
+            json_file="scan-results/trivy/${safe}.json"
 
-            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format template --template @trivy.tpl "$img" \
-              | tee -a scan-results/trivy-report.txt || true
+            echo "=== Scanning $img ==="
 
-            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format json "$img" \
-              > "scan-results/trivy/${safe}.json" || true
+            # 1. THE ONLY SCAN: Output to JSON
+            trivy image --quiet --scanners vuln --severity "$TRIVY_SEVERITY" \
+              --format json -o "$json_file" "$img" || true
 
-            echo "" >> scan-results/trivy-report.txt
+            # 2. CONVERT TO TEXT (Appended for Cyber)
+            echo "=== $img ===" >> scan-results/trivy-report.txt
+            trivy convert --format template --template "@trivy.tpl" \
+              "$json_file" >> scan-results/trivy-report.txt || true
+            echo -e "\n" >> scan-results/trivy-report.txt
 
-            # Generate the Individual HTML Report
-            trivy image --quiet --scanners vuln \
-              --severity "$TRIVY_SEVERITY" \
-              --format template \
-              --template "@html.tpl" \
-              -o "scan-results/trivy-html/${safe}.html" \
-              "$img" || true
+            # 3. CONVERT TO HTML (Individual file)
+            trivy convert --format template --template "@html.tpl" \
+              -o "scan-results/trivy-html/${safe}.html" "$json_file" || true
+
           done < images.txt
 
+          # Gate remains the same
           if grep -Eq 'HIGH|CRITICAL' scan-results/trivy-report.txt; then
             echo "Compliance failed: HIGH/CRITICAL vulnerabilities found."
             exit 1
