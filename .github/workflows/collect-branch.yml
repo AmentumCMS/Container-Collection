@@ -156,7 +156,7 @@ jobs:
       # redhat creds
       redhat_user: ${{ secrets.REDHAT_USER }}
       redhat_pass: ${{ secrets.REDHAT_PASS }}
-report:
+  report:
     name: Combine Security Reports
     runs-on: ubuntu-24.04
     needs: [collect]
