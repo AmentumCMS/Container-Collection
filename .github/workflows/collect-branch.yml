@@ -33,17 +33,17 @@ jobs:
             cred_profile: redhat
             helm: false
 
-          - name: atlassian-bamboo-ib
-            yaml: collectors/Atlassian/Bamboo-IB.yml
-            helm: false
+          # - name: atlassian-bamboo-ib
+          #   yaml: collectors/Atlassian/Bamboo-IB.yml
+          #   helm: false
 
-          - name: atlassian-bitbucket-ib
-            yaml: collectors/Atlassian/Bitbucket-IB.yml
-            helm: false
+          # - name: atlassian-bitbucket-ib
+          #   yaml: collectors/Atlassian/Bitbucket-IB.yml
+          #   helm: false
 
-          - name: atlassian-confluence-ib
-            yaml: collectors/Atlassian/Confluence-IB.yml
-            helm: false
+          # - name: atlassian-confluence-ib
+          #   yaml: collectors/Atlassian/Confluence-IB.yml
+          #   helm: false
 
           - name: haproxy-ib
             yaml: collectors/HAProxy-IB.yml
@@ -52,91 +52,91 @@ jobs:
             helm_repo_url: https://haproxytech.github.io/helm-charts
             helm_chart: kubernetes-ingress
 
-          - name: jdk-ib
-            yaml: collectors/JDK-IB.yml
-            helm: false
+          # - name: jdk-ib
+          #   yaml: collectors/JDK-IB.yml
+          #   helm: false
 
-          - name: atlassian-jira-ib
-            yaml: collectors/Atlassian/Jira-IB.yml
-            helm: false
+          # - name: atlassian-jira-ib
+          #   yaml: collectors/Atlassian/Jira-IB.yml
+          #   helm: false
 
-          - name: kafka-ib
-            yaml: collectors/Kafka-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: kafka
+          # - name: kafka-ib
+          #   yaml: collectors/Kafka-IB.yml
+          #   helm: true
+          #   helm_repo_name: bitnami
+          #   helm_repo_url: https://charts.bitnami.com/bitnami/
+          #   helm_chart: kafka
 
-          - name: kaniko-ib
-            yaml: collectors/Kaniko-IB.yml
-            helm: false
+          # - name: kaniko-ib
+          #   yaml: collectors/Kaniko-IB.yml
+          #   helm: false
 
-          - name: keycloak-ib
-            yaml: collectors/Keycloak-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: keycloak
+          # - name: keycloak-ib
+          #   yaml: collectors/Keycloak-IB.yml
+          #   helm: true
+          #   helm_repo_name: bitnami
+          #   helm_repo_url: https://charts.bitnami.com/bitnami/
+          #   helm_chart: keycloak
 
-          - name: maven-ib
-            yaml: collectors/Maven-IB.yml
-            helm: false
+          # - name: maven-ib
+          #   yaml: collectors/Maven-IB.yml
+          #   helm: false
 
-          - name: nexus-ib
-            yaml: collectors/Nexus-IB.yml
-            helm: true
-            helm_repo_name: sonatype
-            helm_repo_url: https://sonatype.github.io/helm3-charts/
-            helm_chart: nexus-repository-manager
+          # - name: nexus-ib
+          #   yaml: collectors/Nexus-IB.yml
+          #   helm: true
+          #   helm_repo_name: sonatype
+          #   helm_repo_url: https://sonatype.github.io/helm3-charts/
+          #   helm_chart: nexus-repository-manager
 
-          - name: nginx-ib
-            yaml: collectors/Nginx-IB.yml
-            helm: false
+          # - name: nginx-ib
+          #   yaml: collectors/Nginx-IB.yml
+          #   helm: false
 
-          - name: packer-ib
-            yaml: collectors/Packer-IB.yml
-            helm: false
+          # - name: packer-ib
+          #   yaml: collectors/Packer-IB.yml
+          #   helm: false
 
-          - name: postgres-ib
-            yaml: collectors/PostgreSQL-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: postgresql
+          # - name: postgres-ib
+          #   yaml: collectors/PostgreSQL-IB.yml
+          #   helm: true
+          #   helm_repo_name: bitnami
+          #   helm_repo_url: https://charts.bitnami.com/bitnami/
+          #   helm_chart: postgresql
 
-          - name: rabbitmq-ib
-            yaml: collectors/RabbitMQ-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: rabbitmq
+          # - name: rabbitmq-ib
+          #   yaml: collectors/RabbitMQ-IB.yml
+          #   helm: true
+          #   helm_repo_name: bitnami
+          #   helm_repo_url: https://charts.bitnami.com/bitnami/
+          #   helm_chart: rabbitmq
 
-          - name: redis-ib
-            yaml: collectors/Redis-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: redis
+          # - name: redis-ib
+          #   yaml: collectors/Redis-IB.yml
+          #   helm: true
+          #   helm_repo_name: bitnami
+          #   helm_repo_url: https://charts.bitnami.com/bitnami/
+          #   helm_chart: redis
 
-          - name: atlassian-search-ib
-            yaml: collectors/Atlassian/Search-IB.yml
-            helm: false
+          # - name: atlassian-search-ib
+          #   yaml: collectors/Atlassian/Search-IB.yml
+          #   helm: false
 
-          - name: skopeo-ib
-            yaml: collectors/Skopeo-IB.yml
-            helm: false
+          # - name: skopeo-ib
+          #   yaml: collectors/Skopeo-IB.yml
+          #   helm: false
 
-          - name: sonarqube-cli
-            yaml: collectors/Sonarqube-CLI.yml
-            helm: false
+          # - name: sonarqube-cli
+          #   yaml: collectors/Sonarqube-CLI.yml
+          #   helm: false
 
-          - name: atlassian-support-ib
-            yaml: collectors/Atlassian/Support-IB.yml
-            helm: false
+          # - name: atlassian-support-ib
+          #   yaml: collectors/Atlassian/Support-IB.yml
+          #   helm: false
 
-          - name: ubi-ib
-            yaml: collectors/UBI-IB.yml
-            helm: false
+          # - name: ubi-ib
+          #   yaml: collectors/UBI-IB.yml
+          #   helm: false
 
     uses: ./.github/workflows/collector-reusable.yml
     with:
@@ -194,8 +194,7 @@ jobs:
           # 3. Combine JSON (Removing the ** recursion since files are now flat)
           # We check if any files exist first to avoid jq errors
           if ls combined-reports/trivy/*.json >/dev/null 2>&1; then
-            jq -s '[.[].Results[] | select(. != null)]' combined-reports/trivy/*.json > merged_results.json
-          else
+            jq -s '{ SchemaVersion: 2, Results: [.[].Results[] | select(. != null)] }' combined-reports/trivy/*.json > merged_results.json          else
             echo "No Trivy JSON files found to merge."
             exit 1
           fi
