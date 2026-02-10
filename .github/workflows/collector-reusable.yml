@@ -215,7 +215,7 @@ jobs:
               --severity "$TRIVY_SEVERITY" \
               --format template \
               --template "@html.tpl" \
-              -o "scan-results/trivy-html/${safe_name}.html" \
+              -o "scan-results/trivy-html/${safe}.html" \
               "$img" || true
 
           if grep -Eq 'HIGH|CRITICAL' scan-results/trivy-report.txt; then
