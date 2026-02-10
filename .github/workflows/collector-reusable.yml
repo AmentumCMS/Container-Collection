@@ -194,6 +194,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p scan-results/trivy
+          mkdir -p scan-results/trivy-html
           : > scan-results/trivy-report.txt
 
           while read -r img; do
