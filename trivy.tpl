@@ -1,12 +1,15 @@
-{{- range .Results }}
-{{- if .Vulnerabilities }}
+{{- range . }}
+  {{- range .Results }}
+    {{- if .Vulnerabilities }}
+IMAGE: {{ $.ArtifactName }}
 Target: {{ .Target }}
 ┌────────────────┬──────────────────────┬──────────┬───────────────────┬───────────────────┐
 │ Library        │ Vulnerability ID     │ Severity │ Installed Version │ Fixed Version     │
 ├────────────────┼──────────────────────┼──────────┼───────────────────┼───────────────────┤
-{{- range .Vulnerabilities }}
+      {{- range .Vulnerabilities }}
 │ {{ printf "%-14.14s" .PkgName }} │ {{ printf "%-20s" .VulnerabilityID }} │ {{ printf "%-8s" .Severity }} │ {{ printf "%-17.17s" .InstalledVersion }} │ {{ printf "%-17.17s" (default "N/A" .FixedVersion) }} │
-{{- end }}
+      {{- end }}
 └────────────────┴──────────────────────┴──────────┴───────────────────┴───────────────────┘
-{{- end }}
+    {{- end }}
+  {{- end }}
 {{- end }}
