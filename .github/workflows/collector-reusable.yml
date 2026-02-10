@@ -216,6 +216,7 @@ jobs:
           fi
 
       - name: Grype scan (gate)
+        if: always()
         run: |
           set -euo pipefail
           mkdir -p scan-results/grype
