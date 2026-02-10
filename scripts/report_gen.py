@@ -63,7 +63,7 @@ def generate(reports):
                 {% set score, vector = get_data(v) %}
                 <tr>
                     <td><strong>{{ v.PkgName }}</strong></td>
-                    <td><a href="https://avd.aquasec.com/nvd/{{ v.VulnerabilityID }}">{{ v.VulnerabilityID }}</a></td>
+                    <td><a href="https://www.cve.org/CVERecord?id={{ v.VulnerabilityID }}">{{ v.VulnerabilityID }}</a></td>
                     <td class="severity severity-{{ v.Severity }}">{{ v.Severity }}</td>
                     <td style="text-align:center">{{ score }}</td>
                     <td class="vector-text">{{ vector }}</td>
