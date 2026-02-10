@@ -202,7 +202,7 @@ jobs:
             safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
             echo "=== $img ===" | tee -a scan-results/trivy-report.txt
 
-            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format template --template @/github/workspace/trivy.tpl "$img" \
+            trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format template --template @trivy.tpl "$img" \
               | tee -a scan-results/trivy-report.txt || true
 
             trivy image --scanners vuln --severity "$TRIVY_SEVERITY" --format json "$img" \
