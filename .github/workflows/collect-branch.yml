@@ -194,7 +194,8 @@ jobs:
           # 3. Combine JSON (Removing the ** recursion since files are now flat)
           # We check if any files exist first to avoid jq errors
           if ls combined-reports/trivy/*.json >/dev/null 2>&1; then
-            jq -s '{ SchemaVersion: 2, Results: [.[].Results[] | select(. != null)] }' combined-reports/trivy/*.json > merged_results.json          else
+            jq -s '{ SchemaVersion: 2, Results: [.[].Results[] | select(. != null)] }' combined-reports/trivy/*.json > merged_results.json
+          else
             echo "No Trivy JSON files found to merge."
             exit 1
           fi
