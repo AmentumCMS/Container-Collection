@@ -162,6 +162,15 @@ jobs:
     needs: [collect]
     if: always()
     steps:
+      - name: Install Trivy + Grype
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y curl
+
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sudo sh -s -- -b /usr/local/bin
+
       - name: Download all scan artifacts
         uses: actions/download-artifact@v4
         with:
