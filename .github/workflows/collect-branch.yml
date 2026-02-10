@@ -156,3 +156,35 @@ jobs:
       # redhat creds
       redhat_user: ${{ secrets.REDHAT_USER }}
       redhat_pass: ${{ secrets.REDHAT_PASS }}
+report:
+    name: Combine Security Reports
+    runs-on: ubuntu-24.04
+    needs: [collect]
+    if: always()
+    steps:
+      - name: Download all scan artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-scans
+          pattern: "*-scan" # Grabs every artifact ending in -scan
+
+      - name: Merge Reports
+        run: |
+          mkdir -p combined-reports/trivy
+          mkdir -p combined-reports/grype
+          
+          # Find all trivy json files and move to combined folder
+          find all-scans -path "*/trivy/*.json" -exec cp {} combined-reports/trivy/ \;
+          
+          # Find all grype json files and move to combined folder
+          find all-scans -path "*/grype/*.json" -exec cp {} combined-reports/grype/ \;
+          
+          # Combine the human-readable trivy text reports into one big file
+          echo "GLOBAL TRIVY SECURITY SUMMARY" > combined-reports/trivy-summary-all.txt
+          find all-scans -name "trivy-report.txt" -exec cat {} >> combined-reports/trivy-summary-all.txt \;
+
+      - name: Upload Combined Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Global-Security-Reports
+          path: combined-reports/
