@@ -48,6 +48,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       date: ${{ steps.date.outputs.DATE }}
+      group: ${{ steps.group-tag.outputs.GROUP_NAME }}
     env:
       COLLECTOR_YAML: ${{ inputs.collector_yaml }}
       COLLECTOR_NAME: ${{ inputs.collector_name }}
@@ -302,7 +303,7 @@ jobs:
       - name: Upload Helm chart artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.group.outputs.NAME }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-helm
+          name: ${{ needs.resolve.outputs.group }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-helm
           path: |
             ${{ env.COLLECTOR_NAME }}/helmchart/**
             ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.helm.sha
@@ -330,7 +331,7 @@ jobs:
         if: ${{ inputs.collect_helm }}
         uses: actions/download-artifact@v4
         with:
-          name: ${{ steps.group.outputs.NAME }}-${{ inputs.collector_name }}-${{ env.DATE }}-helm
+          name: ${{ needs.resolve.outputs.group }}-${{ inputs.collector_name }}-${{ env.DATE }}-helm
           path: .
 
       - name: Pick credentials
@@ -399,7 +400,7 @@ jobs:
       - name: Upload mirror tarball
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.group.outputs.NAME }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
+          name: ${{ needs.resolve.outputs.group }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
           path: |
             ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.tgz*
           if-no-files-found: error
