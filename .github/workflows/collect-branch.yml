@@ -21,26 +21,29 @@ jobs:
       - id: set-groups
         shell: bash
         run: |
-          echo "--- Environment Check ---"
-          if [ ! -d "collectors" ]; then
-            echo "groups=[]" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Use a shell array to capture directories
-          # This avoids 'find' permission errors and pipe issues
-          cd collectors
-          dirs=(*/)
+          echo "--- Deep Diagnostic ---"
+          ls -ld collectors
+          ls -la collectors/
           
-          # Remove trailing slashes and check if we actually found directories
-          if [ "${dirs[0]}" == "*/" ]; then
-            echo "No directories found."
+          # Try to list directories without 'cd'
+          # using 'shopt -s nullglob' to avoid the '*/' literal string
+          shopt -s nullglob
+          dirs=(collectors/*/)
+          
+          if [ ${#dirs[@]} -eq 0 ]; then
+            echo "No subdirectories found."
             echo "groups=[]" >> "$GITHUB_OUTPUT"
           else
-            # Format the array into a newline-separated string, then to JSON
-            GROUPS=$(printf '%s\n' "${dirs[@]%/}" | jq -R . | jq -s -c .)
+            # Clean up paths (remove 'collectors/' and trailing '/')
+            cleaned_dirs=()
+            for d in "${dirs[@]}"; do
+              tmp="${d#collectors/}"
+              cleaned_dirs+=("${tmp%/}")
+            done
+            
+            GROUPS=$(printf '%s\n' "${cleaned_dirs[@]}" | jq -R . | jq -s -c .)
             echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
-            echo "Discovered groups: $GROUPS"
+            echo "Success: $GROUPS"
           fi
 
   collect:
