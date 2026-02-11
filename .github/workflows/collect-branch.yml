@@ -266,41 +266,46 @@ jobs:
           mkdir -p iso-root/helm
           mkdir -p iso-root/containers
           
-          echo "Filtering artifacts for group: ${{ matrix.group }}"
+          # Convert matrix group to lowercase for comparison
+          TARGET_GROUP=$(echo "${{ matrix.group }}" | tr '[:upper:]' '[:lower:]')
+          echo "Filtering artifacts for group (normalized): $TARGET_GROUP"
 
           # Iterate through every downloaded artifact folder
           for artifact_dir in all-artifacts/*; do
             [ -d "$artifact_dir" ] || continue
             
-            # Use the identity tag if it exists
             TAG_FILE="$artifact_dir/group_identity.txt"
             
             if [ -f "$TAG_FILE" ]; then
-              IDENTITY=$(cat "$TAG_FILE")
+              # Read identity and convert to lowercase
+              IDENTITY=$(cat "$TAG_FILE" | tr '[:upper:]' '[:lower:]')
               
-              if [ "$IDENTITY" == "${{ matrix.group }}" ]; then
-                echo "Adding $artifact_dir to ISO..."
+              if [ "$IDENTITY" == "$TARGET_GROUP" ]; then
+                echo "Adding $artifact_dir to ISO (Match: $IDENTITY)"
                 
-                # Copy container bundles (from mirror artifacts)
-                find "$artifact_dir" -name "*.tgz*" -exec cp -v {} iso-root/containers/ \;
+                # Use -iname for case-insensitive file finding
+                # Copy container bundles
+                find "$artifact_dir" -type f -iname "*.tgz*" -exec cp -v {} iso-root/containers/ \;
                 
-                # Copy Helm charts (from helm artifacts)
-                find "$artifact_dir" -name "*.helm.sha" -exec cp -v {} iso-root/helm/ \;
-                find "$artifact_dir" -path "*/helmchart/*.tgz" -exec cp -v {} iso-root/helm/ \;
+                # Copy Helm charts
+                find "$artifact_dir" -type f -iname "*.helm.sha" -exec cp -v {} iso-root/helm/ \;
+                # Match .tgz files inside a helmchart directory (case insensitive path)
+                find "$artifact_dir" -ipath "*/helmchart/*.tgz" -exec cp -v {} iso-root/helm/ \;
               fi
             fi
           done
 
           # Check if we actually found anything for this group
-          if [ -z "$(ls -A iso-root/containers)" ] && [ -z "$(ls -A iso-root/helm)" ]; then
-             echo "No content found for group ${{ matrix.group }}. Skipping ISO creation."
+          if [ ! "$(ls -A iso-root/containers 2>/dev/null)" ] && [ ! "$(ls -A iso-root/helm 2>/dev/null)" ]; then
+             echo "No content found for group $TARGET_GROUP. Skipping ISO creation."
              exit 0
           fi
 
           # Build the ISO
-          VOLUME_ID=$(echo "${{ matrix.group }}" | cut -c 1-32)
-          mkisofs -J -R -l -V "$VOLUME_ID" -o "${{ matrix.group }}-Group.iso" iso-root
-          sha256sum "${{ matrix.group }}-Group.iso" > "${{ matrix.group }}-Group.iso.sha"
+          # Volume ID: Uppercase is standard for ISOs, max 32 chars
+          VOLUME_ID=$(echo "$TARGET_GROUP" | tr '[:lower:]' '[:upper:]' | cut -c 1-32)
+          mkisofs -J -R -l -V "$VOLUME_ID" -o "${TARGET_GROUP}-Group.iso" iso-root
+          sha256sum "${TARGET_GROUP}-Group.iso" > "${TARGET_GROUP}-Group.iso.sha"
 
       - name: Upload Group ISO
         if: success()
