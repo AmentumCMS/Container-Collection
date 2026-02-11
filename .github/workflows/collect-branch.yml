@@ -17,11 +17,32 @@ jobs:
       groups: ${{ steps.set-groups.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
+      
       - id: set-groups
+        shell: bash
         run: |
-          # Find directories in collectors/, get basename, and convert to JSON array
-          GROUPS=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R . | jq -s -c .)
+          # 1. Check if the directory exists first
+          if [ ! -d "collectors" ]; then
+            echo "Warning: 'collectors/' directory not found."
+            echo "groups=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 2. Find directories, but handle the 'empty' case safely
+          # We use '|| true' to ensure the sub-command doesn't kill the script
+          DIR_LIST=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null || true)
+
+          # 3. Convert to JSON, defaulting to [] if DIR_LIST is empty
+          if [ -z "$DIR_LIST" ]; then
+            GROUPS="[]"
+          else
+            GROUPS=$(echo "$DIR_LIST" | jq -R . | jq -s -c .)
+          fi
+
           echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
+          
+          # Debugging: show what we found
+          echo "Discovered groups: $GROUPS"
 
   collect:
     name: Collect ${{ matrix.name }}
