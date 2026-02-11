@@ -21,28 +21,24 @@ jobs:
       - id: set-groups
         shell: bash
         run: |
-          set -e  # Ensure we exit on real errors
-          
           echo "--- Environment Check ---"
           if [ ! -d "collectors" ]; then
-            echo "Folder MISSING"
             echo "groups=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Folder exists"
 
-          # 1. Use a temp file to store directory names
-          # This avoids pipefail issues with empty variables
-          find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; > raw_list.txt
-
-          # 2. Check if the file has content
-          if [ ! -s raw_list.txt ]; then
-            echo "No subdirectories found."
+          # Use a shell array to capture directories
+          # This avoids 'find' permission errors and pipe issues
+          cd collectors
+          dirs=(*/)
+          
+          # Remove trailing slashes and check if we actually found directories
+          if [ "${dirs[0]}" == "*/" ]; then
+            echo "No directories found."
             echo "groups=[]" >> "$GITHUB_OUTPUT"
           else
-            # 3. Process the file into JSON
-            # Using -R and -s with jq on a file is much more stable
-            GROUPS=$(jq -R . raw_list.txt | jq -s -c .)
+            # Format the array into a newline-separated string, then to JSON
+            GROUPS=$(printf '%s\n' "${dirs[@]%/}" | jq -R . | jq -s -c .)
             echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
             echo "Discovered groups: $GROUPS"
           fi
