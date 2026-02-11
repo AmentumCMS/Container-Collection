@@ -21,6 +21,9 @@ jobs:
       - id: set-groups
         shell: bash
         run: |
+          ls -laR
+          echo "--- Environment Check ---"
+          [ -d "collectors" ] && echo "Folder exists" || echo "Folder MISSING"
           # 1. Check if the directory exists first
           if [ ! -d "collectors" ]; then
             echo "Warning: 'collectors/' directory not found."
