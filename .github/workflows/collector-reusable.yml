@@ -64,7 +64,12 @@ jobs:
           sudo wget -qO /usr/local/bin/yq \
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
-
+      - name: List Files for Debugging
+        run: |
+          echo "Checking current directory..."
+          pwd
+          echo "Listing all files and folders:"
+          ls -F
       - name: Generate Groups JSON
         id: set-groups
         run: |
