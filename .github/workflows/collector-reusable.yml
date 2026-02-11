@@ -330,7 +330,7 @@ jobs:
         if: ${{ inputs.collect_helm }}
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.collector_name }}-${{ env.DATE }}-helm
+          name: ${{ steps.group.outputs.NAME }}-${{ inputs.collector_name }}-${{ env.DATE }}-helm
           path: .
 
       - name: Pick credentials
