@@ -21,30 +21,34 @@ jobs:
       - id: set-groups
         shell: bash
         run: |
-          echo "--- Deep Diagnostic ---"
-          ls -ld collectors
-          ls -la collectors/
-          
-          # Try to list directories without 'cd'
-          # using 'shopt -s nullglob' to avoid the '*/' literal string
+          echo "--- Processing Groups ---"
           shopt -s nullglob
           dirs=(collectors/*/)
           
           if [ ${#dirs[@]} -eq 0 ]; then
-            echo "No subdirectories found."
             echo "groups=[]" >> "$GITHUB_OUTPUT"
-          else
-            # Clean up paths (remove 'collectors/' and trailing '/')
-            cleaned_dirs=()
-            for d in "${dirs[@]}"; do
-              tmp="${d#collectors/}"
-              cleaned_dirs+=("${tmp%/}")
-            done
-            
-            GROUPS=$(printf '%s\n' "${cleaned_dirs[@]}" | jq -R . | jq -s -c .)
-            echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
-            echo "Success: $GROUPS"
+            exit 0
           fi
+
+          # Build JSON array manually to avoid pipefail/jq issues
+          JSON="["
+          first=true
+          for d in "${dirs[@]}"; do
+            # Remove prefix and suffix
+            name="${d#collectors/}"
+            name="${name%/}"
+            
+            if [ "$first" = true ]; then
+              JSON+="\"$name\""
+              first=false
+            else
+              JSON+=",\"$name\""
+            fi
+          done
+          JSON+="]"
+
+          echo "groups=$JSON" >> "$GITHUB_OUTPUT"
+          echo "Final JSON: $JSON"
 
   collect:
     name: Collect ${{ matrix.name }}
