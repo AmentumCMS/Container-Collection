@@ -66,10 +66,12 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       - name: Create Group Identity Tag
+        id: group-tag
         run: |
           # Extracts 'Service' from 'collectors/Service/ArgoCD-IB.yml'
           GROUP_NAME=$(echo "${{ inputs.collector_yaml }}" | awk -F'/' '{print $2}')
           echo "$GROUP_NAME" > group_identity.txt
+          echo "GROUP_NAME=$GROUP_NAME" >> "$GITHUB_OUTPUT"
           echo "Collector belongs to group: $GROUP_NAME"
 
       - name: Resolve images from YAML -> images.txt
@@ -116,14 +118,13 @@ jobs:
           fi
 
 
-      - name: Upload images + registries + tag
+      - name: Upload images + registries
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-resolve
           path: |
             images.txt
             registries.txt
-            group_identity.txt
           if-no-files-found: error
 
   scan:
@@ -301,7 +302,7 @@ jobs:
       - name: Upload Helm chart artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-helm
+          name: ${{ steps.group.outputs.NAME }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-helm
           path: |
             ${{ env.COLLECTOR_NAME }}/helmchart/**
             ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.helm.sha
@@ -398,7 +399,7 @@ jobs:
       - name: Upload mirror tarball
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
+          name: ${{ steps.group.outputs.NAME }}-${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
           path: |
             ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.tgz*
           if-no-files-found: error
