@@ -311,7 +311,7 @@ jobs:
   sync:
     name: Skopeo sync + package mirror
     runs-on: ubuntu-24.04
-    needs: [resolve, scan, helm]
+    needs: [resolve, scan]
     env:
       COLLECTOR_YAML: ${{ inputs.collector_yaml }}
       COLLECTOR_NAME: ${{ inputs.collector_name }}
