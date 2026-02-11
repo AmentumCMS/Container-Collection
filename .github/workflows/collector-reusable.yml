@@ -65,12 +65,25 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Create Group Identity Tag
+      - name: Generate Groups JSON
+        id: set-groups
         run: |
-          # Extracts 'Service' from 'collectors/Service/ArgoCD-IB.yml'
-          GROUP_NAME=$(echo "${{ inputs.collector_yaml }}" | awk -F'/' '{print $2}')
-          echo "$GROUP_NAME" > group_identity.txt
-          echo "Collector belongs to group: $GROUP_NAME"
+          # 1. Ensure the directory exists to avoid 'find' errors
+          if [ ! -d "collectors" ]; then
+            echo "groups=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 2. Capture the directories safely
+          # We use -print0 and read to handle spaces or weird characters in folder names
+          GROUPS=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R . | jq -s -c .)
+
+          # 3. Fallback to empty array if GROUPS is empty
+          if [ -z "$GROUPS" ]; then
+            GROUPS="[]"
+          fi
+
+          echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
 
       - name: Resolve images from YAML -> images.txt
         run: |
