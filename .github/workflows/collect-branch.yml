@@ -11,6 +11,18 @@ permissions:
   security-events: write
 
 jobs:
+  setup-groups:
+    runs-on: ubuntu-latest
+    outputs:
+      groups: ${{ steps.set-groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-groups
+        run: |
+          # Find directories in collectors/, get basename, and convert to JSON array
+          GROUPS=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R . | jq -s -c .)
+          echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
+
   collect:
     name: Collect ${{ matrix.name }}
     strategy:
@@ -18,18 +30,18 @@ jobs:
       matrix:
         include:
           - name: argocd-ib
-            yaml: collectors/ArgoCD-IB.yml
+            yaml: collectors/Service/ArgoCD-IB.yml
             helm: true
             helm_repo_name: argo
             helm_repo_url: https://argoproj.github.io/argo-helm
             helm_chart: argo-cd
 
           - name: ast-cli
-            yaml: collectors/Ast-CLI.yml
+            yaml: collectors/Pipeline/Ast-CLI.yml
             helm: false
 
           - name: bootc
-            yaml: collectors/BootC.yml
+            yaml: collectors/Base/BootC.yml
             cred_profile: redhat
             helm: false
 
@@ -46,14 +58,14 @@ jobs:
             helm: false
 
           - name: haproxy-ib
-            yaml: collectors/HAProxy-IB.yml
+            yaml: collectors/Service/HAProxy-IB.yml
             helm: true
             helm_repo_name: haproxytech
             helm_repo_url: https://haproxytech.github.io/helm-charts
             helm_chart: kubernetes-ingress
 
           - name: jdk-ib
-            yaml: collectors/JDK-IB.yml
+            yaml: collectors/Base/JDK-IB.yml
             helm: false
 
           - name: atlassian-jira-ib
@@ -61,58 +73,58 @@ jobs:
             helm: false
 
           - name: kafka-ib
-            yaml: collectors/Kafka-IB.yml
+            yaml: collectors/Service/Kafka-IB.yml
             helm: true
             helm_repo_name: bitnami
             helm_repo_url: https://charts.bitnami.com/bitnami/
             helm_chart: kafka
 
           - name: kaniko-ib
-            yaml: collectors/Kaniko-IB.yml
+            yaml: collectors/Build/Kaniko-IB.yml
             helm: false
 
           - name: keycloak-ib
-            yaml: collectors/Keycloak-IB.yml
+            yaml: collectors/Service/Keycloak-IB.yml
             helm: true
             helm_repo_name: bitnami
             helm_repo_url: https://charts.bitnami.com/bitnami/
             helm_chart: keycloak
 
           - name: maven-ib
-            yaml: collectors/Maven-IB.yml
+            yaml: collectors/Build/Maven-IB.yml
             helm: false
 
           - name: nexus-ib
-            yaml: collectors/Nexus-IB.yml
+            yaml: collectors/Service/Nexus-IB.yml
             helm: true
             helm_repo_name: sonatype
             helm_repo_url: https://sonatype.github.io/helm3-charts/
             helm_chart: nexus-repository-manager
 
           - name: nginx-ib
-            yaml: collectors/Nginx-IB.yml
+            yaml: collectors/Base/Nginx-IB.yml
             helm: false
 
           - name: packer-ib
-            yaml: collectors/Packer-IB.yml
+            yaml: collectors/Build/Packer-IB.yml
             helm: false
 
           - name: postgres-ib
-            yaml: collectors/PostgreSQL-IB.yml
+            yaml: collectors/Service/PostgreSQL-IB.yml
             helm: true
             helm_repo_name: bitnami
             helm_repo_url: https://charts.bitnami.com/bitnami/
             helm_chart: postgresql
 
           - name: rabbitmq-ib
-            yaml: collectors/RabbitMQ-IB.yml
+            yaml: collectors/Service/RabbitMQ-IB.yml
             helm: true
             helm_repo_name: bitnami
             helm_repo_url: https://charts.bitnami.com/bitnami/
             helm_chart: rabbitmq
 
           - name: redis-ib
-            yaml: collectors/Redis-IB.yml
+            yaml: collectors/Service/Redis-IB.yml
             helm: true
             helm_repo_name: bitnami
             helm_repo_url: https://charts.bitnami.com/bitnami/
@@ -123,11 +135,11 @@ jobs:
             helm: false
 
           - name: skopeo-ib
-            yaml: collectors/Skopeo-IB.yml
+            yaml: collectors/Build/Skopeo-IB.yml
             helm: false
 
           - name: sonarqube-cli
-            yaml: collectors/Sonarqube-CLI.yml
+            yaml: collectors/Pipeline/Sonarqube-CLI.yml
             helm: false
 
           - name: atlassian-support-ib
@@ -135,7 +147,7 @@ jobs:
             helm: false
 
           - name: ubi-ib
-            yaml: collectors/UBI-IB.yml
+            yaml: collectors/Base/UBI-IB.yml
             helm: false
 
     uses: ./.github/workflows/collector-reusable.yml
@@ -201,3 +213,71 @@ jobs:
         with:
           name: Global-Security-Reports
           path: combined-reports/
+  
+  bundle-groups:
+    name: Bundle ${{ matrix.group }} Group
+    runs-on: ubuntu-24.04
+    needs: [setup-groups, collect]
+    strategy:
+      matrix:
+        group: ${{ fromJson(needs.setup-groups.outputs.groups) }}
+    if: always()
+    steps:
+      - name: Install mkisofs
+        run: sudo apt-get update && sudo apt-get install -y mkisofs
+
+      - name: Download ALL artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+          # We grab all resolve and mirror artifacts
+          pattern: "*-*" 
+
+      - name: Organize and Build ISO
+        run: |
+          set -euo pipefail
+          mkdir -p iso-root/helm
+          mkdir -p iso-root/containers
+          
+          echo "Filtering artifacts for group: ${{ matrix.group }}"
+
+          # Iterate through every downloaded artifact folder
+          for artifact_dir in all-artifacts/*; do
+            [ -d "$artifact_dir" ] || continue
+            
+            # Use the identity tag if it exists
+            TAG_FILE="$artifact_dir/group_identity.txt"
+            
+            if [ -f "$TAG_FILE" ]; then
+              IDENTITY=$(cat "$TAG_FILE")
+              
+              if [ "$IDENTITY" == "${{ matrix.group }}" ]; then
+                echo "Adding $artifact_dir to ISO..."
+                
+                # Copy container bundles (from mirror artifacts)
+                find "$artifact_dir" -name "*.tgz*" -exec cp -v {} iso-root/containers/ \;
+                
+                # Copy Helm charts (from helm artifacts)
+                find "$artifact_dir" -name "*.helm.sha" -exec cp -v {} iso-root/helm/ \;
+                find "$artifact_dir" -path "*/helmchart/*.tgz" -exec cp -v {} iso-root/helm/ \;
+              fi
+            fi
+          done
+
+          # Check if we actually found anything for this group
+          if [ -z "$(ls -A iso-root/containers)" ] && [ -z "$(ls -A iso-root/helm)" ]; then
+             echo "No content found for group ${{ matrix.group }}. Skipping ISO creation."
+             exit 0
+          fi
+
+          # Build the ISO
+          VOLUME_ID=$(echo "${{ matrix.group }}" | cut -c 1-32)
+          mkisofs -J -R -l -V "$VOLUME_ID" -o "${{ matrix.group }}-Group.iso" iso-root
+          sha256sum "${{ matrix.group }}-Group.iso" > "${{ matrix.group }}-Group.iso.sha"
+
+      - name: Upload Group ISO
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.group }}-Group-ISO
+          path: ${{ matrix.group }}-Group.iso*

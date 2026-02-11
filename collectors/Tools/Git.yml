@@ -1,0 +1,6 @@
+docker.io:
+    images-by-tag-regex:
+        bitnami/git: (^latest$)
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/opensource/git-lfs/git-lfs: (^latest$)

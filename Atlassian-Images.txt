@@ -1,6 +1,0 @@
-Collector-Atlassian-Jira-IB
-Collector-Atlassian-Confluence-IB
-Collector-Atlassian-Bitbucket-IB
-Collector-Atlassian-Support-IB
-Collector-Atlassian-Bamboo-IB
-Collector-Search-IB

@@ -1,0 +1,3 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/opensource/owasp-zap/owasp-zap: v2.15.0

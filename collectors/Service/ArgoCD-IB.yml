@@ -5,3 +5,10 @@ registry1.dso.mil:
 ghcr.io:
     images-by-tag-regex:
         dexidp/dex: v2.42.0
+
+metadata:
+  helm:
+    enabled: true
+    repo_name: argo
+    repo_url: https://argoproj.github.io/argo-helm
+    chart: argo-cd

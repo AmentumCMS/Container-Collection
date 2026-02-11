@@ -1,8 +1,0 @@
-Collector-Maven-IB
-Collector-Skopeo-IB
-Collector-Kaniko-IB
-Collector-ZAP-IB
-Collector-EggplantFusion-IB
-Collector-SonarQube-CLI-IB
-Collector-CXCLI
-Collector-Packer-IB

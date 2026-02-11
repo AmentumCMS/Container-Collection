@@ -65,6 +65,13 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
+      - name: Create Group Identity Tag
+        run: |
+          # Extracts 'Service' from 'collectors/Service/ArgoCD-IB.yml'
+          GROUP_NAME=$(echo "${{ inputs.collector_yaml }}" | awk -F'/' '{print $2}')
+          echo "$GROUP_NAME" > group_identity.txt
+          echo "Collector belongs to group: $GROUP_NAME"
+
       - name: Resolve images from YAML -> images.txt
         run: |
           set -euo pipefail
@@ -109,13 +116,14 @@ jobs:
           fi
 
 
-      - name: Upload images + registries
+      - name: Upload images + registries + tag
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.COLLECTOR_NAME }}-${{ steps.date.outputs.DATE }}-resolve
           path: |
             images.txt
             registries.txt
+            group_identity.txt
           if-no-files-found: error
 
   scan:
@@ -392,51 +400,4 @@ jobs:
           name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
           path: |
             ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.tgz*
-          if-no-files-found: error
-
-  iso:
-    name: Build ISO
-    runs-on: ubuntu-24.04
-    needs: [resolve, sync]
-    env:
-      COLLECTOR_NAME: ${{ inputs.collector_name }}
-      DATE: ${{ needs.resolve.outputs.date }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install mkisofs + isomd5sum
-        run: |
-          set -euo pipefail
-          sudo apt-get update -y
-          sudo apt-get install -y mkisofs isomd5sum
-
-      - name: Download mirror tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-mirror
-          path: .
-
-      - name: Make ISO + hash
-        run: |
-          set -euo pipefail
-          mkdir -p iso-root
-          cp "${COLLECTOR_NAME}-${DATE}.tgz"* iso-root/
-
-          mkisofs -J -R -v -T -l \
-            -V "${COLLECTOR_NAME}-${DATE}" \
-            -A "${COLLECTOR_NAME}-${DATE}" \
-            -o "${COLLECTOR_NAME}-${DATE}.iso" \
-            iso-root
-
-          implantisomd5 "${COLLECTOR_NAME}-${DATE}.iso"
-
-          sha256sum -b "${COLLECTOR_NAME}-${DATE}.iso" \
-            | tee "${COLLECTOR_NAME}-${DATE}.iso.sha"
-
-      - name: Upload ISO bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}-iso
-          path: |
-            ${{ env.COLLECTOR_NAME }}-${{ env.DATE }}.iso*
           if-no-files-found: error

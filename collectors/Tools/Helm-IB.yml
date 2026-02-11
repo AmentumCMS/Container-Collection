@@ -1,0 +1,9 @@
+registry1.dso.mil:
+    images-by-tag-regex:
+        ironbank/dla/helm/helm-fips: ^3.15.3$
+cgr.dev:
+    images-by-tag-regex:
+        chainguard/helm: ^latest$
+docker.io:
+    images-by-tag-regex:
+        alpine/helm: ^3.18.3$
