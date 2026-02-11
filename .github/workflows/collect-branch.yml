@@ -21,31 +21,31 @@ jobs:
       - id: set-groups
         shell: bash
         run: |
-          ls -laR
+          set -e  # Ensure we exit on real errors
+          
           echo "--- Environment Check ---"
-          [ -d "collectors" ] && echo "Folder exists" || echo "Folder MISSING"
-          # 1. Check if the directory exists first
           if [ ! -d "collectors" ]; then
-            echo "Warning: 'collectors/' directory not found."
+            echo "Folder MISSING"
             echo "groups=[]" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "Folder exists"
 
-          # 2. Find directories, but handle the 'empty' case safely
-          # We use '|| true' to ensure the sub-command doesn't kill the script
-          DIR_LIST=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null || true)
+          # 1. Use a temp file to store directory names
+          # This avoids pipefail issues with empty variables
+          find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; > raw_list.txt
 
-          # 3. Convert to JSON, defaulting to [] if DIR_LIST is empty
-          if [ -z "$DIR_LIST" ]; then
-            GROUPS="[]"
+          # 2. Check if the file has content
+          if [ ! -s raw_list.txt ]; then
+            echo "No subdirectories found."
+            echo "groups=[]" >> "$GITHUB_OUTPUT"
           else
-            GROUPS=$(echo "$DIR_LIST" | jq -R . | jq -s -c .)
+            # 3. Process the file into JSON
+            # Using -R and -s with jq on a file is much more stable
+            GROUPS=$(jq -R . raw_list.txt | jq -s -c .)
+            echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
+            echo "Discovered groups: $GROUPS"
           fi
-
-          echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
-          
-          # Debugging: show what we found
-          echo "Discovered groups: $GROUPS"
 
   collect:
     name: Collect ${{ matrix.name }}
