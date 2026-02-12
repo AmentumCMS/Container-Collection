@@ -1,5 +1,5 @@
 name: Collect All (Branch)
-run-name: Collect containers
+run-name: ${{ github.event.head_commit.message }}
 
 on:
   push:
