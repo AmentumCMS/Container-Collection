@@ -11,190 +11,44 @@ permissions:
   security-events: write
 
 jobs:
-  setup-groups:
+  setup-matrix:
     runs-on: ubuntu-latest
     outputs:
+      collectors: ${{ steps.set-matrix.outputs.collectors }}
       groups: ${{ steps.set-groups.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
-      
-      - id: set-groups
-        shell: bash
+
+      - id: set-matrix
         run: |
-          echo "--- Processing Groups ---"
-          shopt -s nullglob
-          dirs=(collectors/*/)
-          
-          if [ ${#dirs[@]} -eq 0 ]; then
-            echo "groups=[]" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # Use yq to grab the 'collectors' array and convert to compact JSON
+          # We'll install yq if it's not on the runner
+          JSON=$(yq -o=json -I=0 '.collectors' collectors.yaml)
+          echo "collectors=$JSON" >> "$GITHUB_OUTPUT"
 
-          # Build JSON array manually to avoid pipefail/jq issues
-          JSON="["
-          first=true
-          for d in "${dirs[@]}"; do
-            # Remove prefix and suffix
-            name="${d#collectors/}"
-            name="${name%/}"
-            
-            if [ "$first" = true ]; then
-              JSON+="\"$name\""
-              first=false
-            else
-              JSON+=",\"$name\""
-            fi
-          done
-          JSON+="]"
-
-          echo "groups=$JSON" >> "$GITHUB_OUTPUT"
-          echo "Final JSON: $JSON"
+      - id: set-groups
+        run: |
+          # Keep your dynamic folder detection for bundling
+          GROUPS=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R . | jq -s -c .)
+          echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
 
   collect:
-    name: Collect ${{ matrix.name }}
+    needs: setup-matrix
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: argocd-ib
-            yaml: collectors/Service/ArgoCD-IB.yml
-            helm: true
-            helm_repo_name: argo
-            helm_repo_url: https://argoproj.github.io/argo-helm
-            helm_chart: argo-cd
-
-          - name: ast-cli
-            yaml: collectors/Pipeline/Ast-CLI.yml
-            helm: false
-
-          - name: bootc
-            yaml: collectors/Base/BootC.yml
-            cred_profile: redhat
-            helm: false
-
-          - name: atlassian-bamboo-ib
-            yaml: collectors/Atlassian/Bamboo-IB.yml
-            helm: false
-
-          - name: atlassian-bitbucket-ib
-            yaml: collectors/Atlassian/Bitbucket-IB.yml
-            helm: false
-
-          - name: atlassian-confluence-ib
-            yaml: collectors/Atlassian/Confluence-IB.yml
-            helm: false
-
-          - name: haproxy-ib
-            yaml: collectors/Service/HAProxy-IB.yml
-            helm: true
-            helm_repo_name: haproxytech
-            helm_repo_url: https://haproxytech.github.io/helm-charts
-            helm_chart: kubernetes-ingress
-
-          - name: jdk-ib
-            yaml: collectors/Base/JDK-IB.yml
-            helm: false
-
-          - name: atlassian-jira-ib
-            yaml: collectors/Atlassian/Jira-IB.yml
-            helm: false
-
-          - name: kafka-ib
-            yaml: collectors/Service/Kafka-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: kafka
-
-          - name: kaniko-ib
-            yaml: collectors/Build/Kaniko-IB.yml
-            helm: false
-
-          - name: keycloak-ib
-            yaml: collectors/Service/Keycloak-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: keycloak
-
-          - name: maven-ib
-            yaml: collectors/Build/Maven-IB.yml
-            helm: false
-
-          - name: nexus-ib
-            yaml: collectors/Service/Nexus-IB.yml
-            helm: true
-            helm_repo_name: sonatype
-            helm_repo_url: https://sonatype.github.io/helm3-charts/
-            helm_chart: nexus-repository-manager
-
-          - name: nginx-ib
-            yaml: collectors/Base/Nginx-IB.yml
-            helm: false
-
-          - name: packer-ib
-            yaml: collectors/Build/Packer-IB.yml
-            helm: false
-
-          - name: postgres-ib
-            yaml: collectors/Service/PostgreSQL-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: postgresql
-
-          - name: rabbitmq-ib
-            yaml: collectors/Service/RabbitMQ-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: rabbitmq
-
-          - name: redis-ib
-            yaml: collectors/Service/Redis-IB.yml
-            helm: true
-            helm_repo_name: bitnami
-            helm_repo_url: https://charts.bitnami.com/bitnami/
-            helm_chart: redis
-
-          - name: atlassian-search-ib
-            yaml: collectors/Atlassian/Search-IB.yml
-            helm: false
-
-          - name: skopeo-ib
-            yaml: collectors/Build/Skopeo-IB.yml
-            helm: false
-
-          - name: sonarqube-cli
-            yaml: collectors/Pipeline/Sonarqube-CLI.yml
-            helm: false
-
-          - name: atlassian-support-ib
-            yaml: collectors/Atlassian/Support-IB.yml
-            helm: false
-
-          - name: ubi-ib
-            yaml: collectors/Base/UBI-IB.yml
-            helm: false
-
+        include: ${{ fromJson(needs.setup-matrix.outputs.collectors) }}
     uses: ./.github/workflows/collector-reusable.yml
     with:
       collector_name: ${{ matrix.name }}
       collector_yaml: ${{ matrix.yaml }}
-      cred_profile: ${{ matrix.cred_profile }}
-
-      collect_helm: ${{ matrix.helm }}
+      cred_profile: ${{ matrix.cred_profile || 'default' }}
+      collect_helm: ${{ matrix.helm || false }}
       helm_repo_name: ${{ matrix.helm_repo_name }}
       helm_repo_url: ${{ matrix.helm_repo_url }}
       helm_chart: ${{ matrix.helm_chart }}
-    secrets:
-      # default creds (ex: registry1.dso.mil)
-      default_user: ${{ secrets.REGISTRY_USER }}
-      default_pass: ${{ secrets.REGISTRY_TOKEN }}
+    secrets: inherit
 
-      # redhat creds
-      redhat_user: ${{ secrets.REDHAT_USER }}
-      redhat_pass: ${{ secrets.REDHAT_PASS }}
   report:
     name: Combine Security Reports
     runs-on: ubuntu-24.04
@@ -244,10 +98,10 @@ jobs:
   bundle-groups:
     name: Bundle ${{ matrix.group }} Group
     runs-on: ubuntu-24.04
-    needs: [setup-groups, collect]
+    needs: [setup-matrix, collect]
     strategy:
       matrix:
-        group: ${{ fromJson(needs.setup-groups.outputs.groups) }}
+        group: ${{ fromJson(needs.setup-matrix.outputs.groups) }}
     if: always()
     steps:
       - name: Install mkisofs
