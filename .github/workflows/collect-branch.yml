@@ -12,25 +12,31 @@ permissions:
 
 jobs:
   setup-matrix:
+    name: Prepare Matrix & Groups
     runs-on: ubuntu-latest
     outputs:
-      collectors: ${{ steps.set-matrix.outputs.collectors }}
-      groups: ${{ steps.set-groups.outputs.groups }}
+      collectors: ${{ steps.data.outputs.collectors }}
+      groups: ${{ steps.data.outputs.groups }}
     steps:
       - uses: actions/checkout@v4
 
-      - id: set-matrix
+      - id: data
+        name: Load YAML and Extract Groups
         run: |
-          # Use yq to grab the 'collectors' array and convert to compact JSON
-          # We'll install yq if it's not on the runner
-          JSON=$(yq -o=json -I=0 '.collectors' collectors.yaml)
-          echo "collectors=$JSON" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
 
-      - id: set-groups
-        run: |
-          # Keep your dynamic folder detection for bundling
-          GROUPS=$(find collectors -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R . | jq -s -c .)
-          echo "groups=$GROUPS" >> "$GITHUB_OUTPUT"
+          # 1. Load the collectors matrix
+          COLLECTORS_JSON=$(yq -o=json -I=0 '.collectors' collectors.yaml)
+          echo "collectors=$COLLECTORS_JSON" >> "$GITHUB_OUTPUT"
+
+          # 2. Extract unique groups from the yaml paths inside collectors.yaml
+          # This pulls the folder name (e.g., Atlassian) from "collectors/Atlassian/Jira.yml"
+          GROUPS_JSON=$(yq -o=json -I=0 '[.collectors[].yaml | split("/") | .[1]] | unique' collectors.yaml)
+          echo "groups=$GROUPS_JSON" >> "$GITHUB_OUTPUT"
+          
+          # Debugging prints to the log
+          echo "Matrix: $COLLECTORS_JSON"
+          echo "Groups found in YAML: $GROUPS_JSON"
 
   collect:
     needs: setup-matrix
