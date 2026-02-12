@@ -109,63 +109,46 @@ jobs:
     name: Bundle ${{ matrix.group }} Group
     runs-on: ubuntu-24.04
     needs: [setup-matrix, collect]
+    if: always()
     strategy:
+      fail-fast: false
       matrix:
         group: ${{ fromJson(needs.setup-matrix.outputs.groups) }}
-    if: always()
     steps:
       - name: Install mkisofs
         run: sudo apt-get update && sudo apt-get install -y mkisofs
 
-      - name: Download ALL artifacts
+      - name: Download group artifacts
         uses: actions/download-artifact@v4
         with:
-          path: all-artifacts
-          pattern: "${{ matrix.group }}-*" 
+          path: group-artifacts
+          pattern: "${{ matrix.group }}-*"
+          merge-multiple: true   # flattens the downloaded artifacts into one dir
 
-      - name: Organize and Build ISO
+      - name: Build ISO
         run: |
           set -euo pipefail
-          mkdir -p iso-root/helm
-          mkdir -p iso-root/containers
-          
-          GROUP_TARGET="${{ matrix.group }}"
-          echo "Filtering artifacts for group: $GROUP_TARGET"
+          mkdir -p iso-root/{helm,containers}
 
-          # Iterate through every downloaded artifact folder
-          for artifact_dir in all-artifacts/*; do
-            [ -d "$artifact_dir" ] || continue
-            
-            DIR_NAME=$(basename "$artifact_dir")
-            
-            # Match if the artifact directory name starts with "GroupName-"
-            if [[ "$DIR_NAME" == "$GROUP_TARGET-"* ]]; then
-              echo "✅ Match found: $DIR_NAME"
-              
-              # 1. Copy container bundles (from mirror artifacts)
-              # Use -not -path to avoid grabbing helm charts that might also be .tgz
-              find "$artifact_dir" -type f -iname "*.tgz*" -not -path "*/helmchart/*" -exec cp -v {} iso-root/containers/ \;
-              
-              # 2. Copy Helm Evidence (from helm artifacts)
-              find "$artifact_dir" -type f -iname "*.helm.sha" -exec cp -v {} iso-root/helm/ \;
-              find "$artifact_dir" -ipath "*/helmchart/*.tgz" -exec cp -v {} iso-root/helm/ \;
-            fi
-          done
+          # Containers (exclude helmchart tgz)
+          find group-artifacts -type f \( -iname "*.tgz" -o -iname "*.tgz.*" \) \
+            -not -path "*/helmchart/*" -exec cp -v {} iso-root/containers/ \;
 
-          # Check if we actually found anything
-          if [ ! "$(ls -A iso-root/containers 2>/dev/null)" ] && [ ! "$(ls -A iso-root/helm 2>/dev/null)" ]; then
-             echo "❌ No content found for group $GROUP_TARGET. Skipping ISO creation."
-             exit 0
+          # Helm evidence
+          find group-artifacts -type f -iname "*.helm.sha" -exec cp -v {} iso-root/helm/ \;
+          find group-artifacts -type f -path "*/helmchart/*.tgz" -exec cp -v {} iso-root/helm/ \;
+
+          if [ -z "$(find iso-root -type f -print -quit)" ]; then
+            echo "❌ No content found for group ${{ matrix.group }}. Skipping."
+            exit 0
           fi
 
-          # Build the ISO
-          VOLUME_ID=$(echo "$GROUP_TARGET" | tr '[:lower:]' '[:upper:]' | cut -c 1-32)
-          mkisofs -J -R -l -V "$VOLUME_ID" -o "${GROUP_TARGET}-Group.iso" iso-root
-          sha256sum "${GROUP_TARGET}-Group.iso" > "${GROUP_TARGET}-Group.iso.sha"
+          volume_id=$(echo "${{ matrix.group }}" | tr '[:lower:]' '[:upper:]' | cut -c 1-32)
+          mkisofs -J -R -l -V "$volume_id" -o "${{ matrix.group }}-Group.iso" iso-root
+          sha256sum "${{ matrix.group }}-Group.iso" > "${{ matrix.group }}-Group.iso.sha"
 
-      - name: Upload Group ISO
+      - uses: actions/upload-artifact@v4
         if: success()
-        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.group }}-Group-ISO
           path: ${{ matrix.group }}-Group.iso*
