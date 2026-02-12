@@ -257,8 +257,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: all-artifacts
-          # We grab all resolve and mirror artifacts
-          pattern: "*-*" 
+          pattern: "${{ matrix.group }}-*" 
 
       - name: Organize and Build ISO
         run: |
