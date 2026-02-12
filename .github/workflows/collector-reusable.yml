@@ -138,6 +138,10 @@ jobs:
       TRIVY_SEVERITY: "HIGH,CRITICAL"
       GRYPE_FAIL_ON: "high"
       CRED_PROFILE: ${{ inputs.cred_profile }}
+      DEFAULT_USER: ${{ secrets.default_user }}
+      DEFAULT_PASS: ${{ secrets.default_pass }}
+      REDHAT_USER: ${{ secrets.redhat_user }}
+      REDHAT_PASS: ${{ secrets.redhat_pass }}
     steps:
       - uses: actions/checkout@v4
 
