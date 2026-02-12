@@ -4,6 +4,6 @@ registry1.dso.mil:
         ironbank/redhat/openjdk/openjdk17: ^1.17$
         ironbank/redhat/openjdk/openjdk8: ^1.8.0$
         ironbank/redhat/openjdk/openjdk8-slim: ^1.8.0$
-        ironbank/google/distroless/java-11: nonroot
-        ironbank/google/distroless/java-17: ibci-4934170-amd64
-        ironbank/google/distroless/java-21: nonroot
+        ironbank/google/distroless/java-11: nonroot$
+        ironbank/google/distroless/java-17: nonroot$
+        ironbank/google/distroless/java-21: nonroot$
