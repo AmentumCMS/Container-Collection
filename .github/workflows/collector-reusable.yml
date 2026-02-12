@@ -384,7 +384,7 @@ jobs:
       - name: Skopeo sync (dir mirror)
         run: |
           set -euo pipefail
-          skopeo sync --scoped --src yaml --override-arch amd64 --override-os linux --all=false --dest dir \
+          skopeo sync --scoped --src yaml --override-arch amd64 --override-os linux --all=false --preserve-digests=false --dest dir \
             "$COLLECTOR_YAML" "${COLLECTOR_NAME}"
 
       - name: TAR mirror + hash
