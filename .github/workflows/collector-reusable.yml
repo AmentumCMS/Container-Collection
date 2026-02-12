@@ -154,6 +154,11 @@ jobs:
       - name: Pick credentials
         id: creds
         shell: bash
+        env:
+          DEFAULT_USER: ${{ secrets.default_user }}
+          DEFAULT_PASS: ${{ secrets.default_pass }}
+          REDHAT_USER: ${{ secrets.redhat_user }}
+          REDHAT_PASS: ${{ secrets.redhat_pass }}
         run: |
           set -euo pipefail
           case "${CRED_PROFILE}" in
