@@ -276,8 +276,7 @@ jobs:
             TAG_FILE="$artifact_dir/group_identity.txt"
             
             if [ -f "$TAG_FILE" ]; then
-              # Read identity and convert to lowercase
-              IDENTITY=$(cat "$TAG_FILE" | tr '[:upper:]' '[:lower:]')
+              IDENTITY=$(cat "$TAG_FILE")
               
               if [ "$IDENTITY" == "${{ matrix.group }}" ]; then
                 echo "Adding $artifact_dir to ISO (Match: $IDENTITY)"
