@@ -155,6 +155,7 @@ jobs:
         id: creds
         shell: bash
         env:
+          # This maps the secrets to the shell environment
           DEFAULT_USER: ${{ secrets.default_user }}
           DEFAULT_PASS: ${{ secrets.default_pass }}
           REDHAT_USER: ${{ secrets.redhat_user }}
@@ -163,12 +164,13 @@ jobs:
           set -euo pipefail
           case "${CRED_PROFILE}" in
             redhat)
-              echo 'user=${{ secrets.redhat_user }}' >> "$GITHUB_OUTPUT"
-              echo 'pass=${{ secrets.redhat_pass }}' >> "$GITHUB_OUTPUT"
+              # Use the shell variables mapped above
+              echo "user=$REDHAT_USER" >> "$GITHUB_OUTPUT"
+              echo "pass=$REDHAT_PASS" >> "$GITHUB_OUTPUT"
               ;;
             default|*)
-              echo 'user=${{ secrets.default_user }}' >> "$GITHUB_OUTPUT"
-              echo 'pass=${{ secrets.default_pass }}' >> "$GITHUB_OUTPUT"
+              echo "user=$DEFAULT_USER" >> "$GITHUB_OUTPUT"
+              echo "pass=$DEFAULT_PASS" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
