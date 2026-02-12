@@ -267,8 +267,7 @@ jobs:
           mkdir -p iso-root/containers
           
           # Convert matrix group to lowercase for comparison
-          TARGET_GROUP=$(echo "${{ matrix.group }}" | tr '[:upper:]' '[:lower:]')
-          echo "Filtering artifacts for group (normalized): $TARGET_GROUP"
+          echo "Filtering artifacts for group (normalized): ${{ matrix.group }}"
 
           # Iterate through every downloaded artifact folder
           for artifact_dir in all-artifacts/*; do
@@ -280,7 +279,7 @@ jobs:
               # Read identity and convert to lowercase
               IDENTITY=$(cat "$TAG_FILE" | tr '[:upper:]' '[:lower:]')
               
-              if [ "$IDENTITY" == "$TARGET_GROUP" ]; then
+              if [ "$IDENTITY" == "${{ matrix.group }}" ]; then
                 echo "Adding $artifact_dir to ISO (Match: $IDENTITY)"
                 
                 # Use -iname for case-insensitive file finding
@@ -297,15 +296,15 @@ jobs:
 
           # Check if we actually found anything for this group
           if [ ! "$(ls -A iso-root/containers 2>/dev/null)" ] && [ ! "$(ls -A iso-root/helm 2>/dev/null)" ]; then
-             echo "No content found for group $TARGET_GROUP. Skipping ISO creation."
+             echo "No content found for group ${{ matrix.group }}. Skipping ISO creation."
              exit 0
           fi
 
           # Build the ISO
           # Volume ID: Uppercase is standard for ISOs, max 32 chars
-          VOLUME_ID=$(echo "$TARGET_GROUP" | tr '[:lower:]' '[:upper:]' | cut -c 1-32)
-          mkisofs -J -R -l -V "$VOLUME_ID" -o "${TARGET_GROUP}-Group.iso" iso-root
-          sha256sum "${TARGET_GROUP}-Group.iso" > "${TARGET_GROUP}-Group.iso.sha"
+          VOLUME_ID=$(echo "${{ matrix.group }}" | tr '[:lower:]' '[:upper:]' | cut -c 1-32)
+          mkisofs -J -R -l -V "$VOLUME_ID" -o "${{ matrix.group }}-Group.iso" iso-root
+          sha256sum "${{ matrix.group }}-Group.iso" > "${{ matrix.group }}-Group.iso.sha"
 
       - name: Upload Group ISO
         if: success()
