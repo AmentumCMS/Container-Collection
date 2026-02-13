@@ -39,6 +39,7 @@ jobs:
           echo "Groups found in YAML: $GROUPS_JSON"
 
   collect:
+    name: Collect • ${{ matrix.name }}
     needs: setup-matrix
     strategy:
       fail-fast: false
