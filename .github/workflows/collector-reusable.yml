@@ -135,7 +135,6 @@ jobs:
     env:
       COLLECTOR_NAME: ${{ inputs.collector_name }}
       DATE: ${{ needs.resolve.outputs.date }}
-      TRIVY_SEVERITY: "HIGH,CRITICAL"
       GRYPE_FAIL_ON: "high"
       CRED_PROFILE: ${{ inputs.cred_profile }}
       DEFAULT_USER: ${{ secrets.default_user }}
@@ -226,7 +225,7 @@ jobs:
             echo "=== Scanning $img ==="
 
             # 1. THE ONLY SCAN: Output to JSON
-            trivy image --quiet --scanners vuln --severity "$TRIVY_SEVERITY" \
+            trivy image --quiet --scanners vuln \
               --format json -o "$json_file" "$img" || true
 
             # 2. CONVERT TO TEXT (Appended for Cyber)
