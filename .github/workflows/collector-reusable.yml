@@ -213,8 +213,7 @@ jobs:
       - name: Trivy scan
         run: |
           set -euo pipefail
-          mkdir -p scan-results/trivy
-          mkdir -p scan-results/trivy-html
+          mkdir -p scan-results/trivy scan-results/trivy-html
           : > scan-results/trivy-report.txt
 
           while read -r img; do
@@ -222,21 +221,31 @@ jobs:
             safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
             json_file="scan-results/trivy/${safe}.json"
 
-            echo "=== Scanning $img ==="
+            echo "=== Scanning $img ===" | tee -a scan-results/trivy-report.txt
 
-            # 1. THE ONLY SCAN: Output to JSON
+            # 1) Scan to JSON (capture stderr so failures are visible)
             trivy image --quiet --scanners vuln \
-              --format json -o "$json_file" "$img" || true
+              --format json -o "$json_file" "$img" \
+              >> scan-results/trivy-report.txt 2>&1 || true
 
-            # 2. CONVERT TO TEXT (Appended for Cyber)
+            # If the JSON doesn't exist or is empty, record it (and optionally fail)
+            if [ ! -s "$json_file" ]; then
+              echo "FATAL: JSON output missing for $img ($json_file)" | tee -a scan-results/trivy-report.txt
+              continue
+              # If you want to hard-fail instead of continue:
+              # exit 1
+            fi
+
+            # 2) Convert to TEXT (append stdout+stderr)
             echo "=== $img ===" >> scan-results/trivy-report.txt
             trivy convert --format template --template "@scripts/trivy.tpl" \
-              "$json_file" >> scan-results/trivy-report.txt || true
+              "$json_file" >> scan-results/trivy-report.txt 2>&1 || true
             echo -e "\n" >> scan-results/trivy-report.txt
 
-            # 3. CONVERT TO HTML (Individual file)
+            # 3) Convert to HTML (capture stderr too, for debugging)
             trivy convert --format template --template "@scripts/html.tpl" \
-              -o "scan-results/trivy-html/${safe}.html" "$json_file" || true
+              -o "scan-results/trivy-html/${safe}.html" "$json_file" \
+              >> scan-results/trivy-report.txt 2>&1 || true
 
           done < images.txt
 
@@ -245,10 +254,11 @@ jobs:
             # exit 1
           fi
 
-          if grep -Eq 'Fatal error' scan-results/trivy-report.txt; then
-            echo "Compliance failed: Invalid yaml file for trivy."
+          if grep -Eqi 'Fatal error|FATAL' scan-results/trivy-report.txt; then
+            echo "Compliance failed: Trivy fatal/conversion error."
             exit 1
           fi
+
 
       # - name: Grype scan (gate)
       #   run: |
