@@ -1,4 +1,4 @@
 registry1.dso.mil:
     images-by-tag-regex:
         ironbank/opensource/keycloak/keycloak: ^26.0.4$
-        ironbank/opensource/keycloak/keycloak-fips: ^26.0.4$
+        ironbank/opensource/keycloak/keycloak-fips: ^26.1.5-fips$
