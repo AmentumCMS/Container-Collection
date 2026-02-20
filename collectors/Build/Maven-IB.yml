@@ -1,4 +1,4 @@
 registry1.dso.mil:
     images-by-tag-regex:
-        ironbank/opensource/maven/maven-openjdk-21: ^1.17.0$
-        ironbank/opensource/maven/maven-openjdk-17: ^1.17.0$
+        ironbank/opensource/maven/maven-openjdk-21: ^3.9.9$
+        ironbank/opensource/maven/maven-openjdk-17: 3.9.9-amazoncorretto-17$
