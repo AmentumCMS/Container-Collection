@@ -245,7 +245,7 @@ jobs:
             # exit 1
           fi
 
-          if grep -Eq 'Fatal Error' scan-results/trivy-report.txt; then
+          if grep -Eq 'Fatal error' scan-results/trivy-report.txt; then
             echo "Compliance failed: Invalid yaml file for trivy."
             exit 1
           fi
