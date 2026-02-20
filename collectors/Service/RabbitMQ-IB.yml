@@ -3,4 +3,4 @@ registry1.dso.mil:
         ironbank/bitnami/rabbitmq: ^4.0.5
 docker.io:
     images-by-tag-regex:
-        bitnami/rabbitmq-cluster-operator: ^2.12.0
+        bitnami/rabbitmq-cluster-operator: latest
