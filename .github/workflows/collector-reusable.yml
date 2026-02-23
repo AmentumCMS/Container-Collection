@@ -260,16 +260,16 @@ jobs:
           fi
 
 
-      # - name: Grype scan (gate)
-      #   run: |
-      #     set -euo pipefail
-      #     mkdir -p scan-results/grype
-      #     while read -r img; do
-      #       [ -n "$img" ] || continue
-      #       safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
-      #       # --fail-on "$GRYPE_FAIL_ON"
-      #       grype "$img" -o json > "scan-results/grype/${safe}.json"
-      #     done < images.txt
+      - name: Grype scan (gate)
+        run: |
+          set -euo pipefail
+          mkdir -p scan-results/grype
+          while read -r img; do
+            [ -n "$img" ] || continue
+            safe="$(printf '%s' "$img" | sed -E 's/[^A-Za-z0-9._-]+/_/g')"
+            # --fail-on "$GRYPE_FAIL_ON"
+            grype "$img" -o json > "scan-results/grype/${safe}.json"
+          done < images.txt
 
       - name: Upload scan evidence
         if: always()
